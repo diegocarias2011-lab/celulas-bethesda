@@ -426,6 +426,18 @@ async function home() {
     state.single = true; return openCell(cells[0]);
   }
   state.single = false;
+  // Primera vez: deja creada la célula de ejemplo para el administrador
+  if (me.rol === "admin" && !cells.length) {
+    let done = false; try { done = localStorage.getItem("celulas-ejemplo-creada") === "1"; } catch {}
+    if (!done) {
+      try {
+        const id = await store.saveCell({ nombre: "Célula 18 Barnacle", lider: "", dia: "Viernes", hora: "8:00 PM", direccion: "" });
+        for (const n of ["Ashly", "Caty", "Daniel", "Diego", "Josué", "Melissa", "Santiago"]) await store.saveMember(id, { nombre: n, telefono: "", creado: new Date().toISOString() });
+        try { localStorage.setItem("celulas-ejemplo-creada", "1"); } catch {}
+        return home();
+      } catch {}
+    }
+  }
   const last = await Promise.all(cells.map((c) => store.meetings(c.id, 1).then((r) => r[0] || null).catch(() => null)));
   const totP = last.reduce((s, m) => s + (m?.presentes || 0), 0);
   const totI = last.reduce((s, m) => s + (m?.invitados || 0), 0);
