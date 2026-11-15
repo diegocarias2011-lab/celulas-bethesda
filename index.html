@@ -1,0 +1,798 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c2868">
+<title>Células Bethesda</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lora:ital,wght@0,600;0,700;1,500&display=swap">
+<style>
+:root {
+  --bg: #eef4fb; --surface: #ffffff; --fg: #12224a; --muted: #5a6b8c; --line: #d5e1f0;
+  --navy: #0c2868; --navy-2: #1d4fae; --celeste: #d9eafc; --gold: #c99a2e; --gold-soft: #f6e3ad;
+  --ok: #157a4a; --ok-bg: #dcf5e8; --no: #b4233a; --no-bg: #fde5e9; --chip: #e4eefa;
+  --shadow: 0 1px 2px rgba(12,40,104,.06), 0 6px 18px rgba(12,40,104,.07);
+  --f-display: "Lora", Georgia, serif;
+  --f-body: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #081430; --surface: #0f1f45; --fg: #e8f0fc; --muted: #9db0d3; --line: #22386a;
+    --navy: #06112b; --navy-2: #2a5cc4; --celeste: #17305f; --gold: #e2b64e; --gold-soft: #4d3c12;
+    --ok: #5fdc9c; --ok-bg: #123a2a; --no: #ff8597; --no-bg: #3a1622; --chip: #183062;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.25);
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.45 var(--f-body); min-height: 100vh; padding-bottom: env(safe-area-inset-bottom, 0px); }
+.wrap { max-width: 760px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+button, input, textarea, select { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+
+/* header */
+.top { background: linear-gradient(160deg, var(--navy), var(--navy-2)); color: #fff; padding-top: env(safe-area-inset-top, 0px); }
+.top .wrap { padding-block: 16px; display: flex; align-items: center; gap: 12px; }
+.mark { width: 40px; height: 40px; border-radius: 50%; background: var(--gold); display: grid; place-items: center; flex: none; }
+.mark svg { width: 20px; height: 20px; }
+.top h1 { margin: 0; font-family: var(--f-display); font-size: 1.25rem; line-height: 1.15; }
+.top p { margin: 1px 0 0; font-size: .78rem; opacity: .85; font-family: var(--f-display); font-style: italic; }
+.top .who { margin-left: auto; text-align: right; font-size: .75rem; opacity: .9; min-width: 0; }
+.top .who button { background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.25); color: #fff; border-radius: 8px; padding: 4px 10px; font-size: .75rem; cursor: pointer; margin-top: 3px; }
+.demo { background: var(--gold-soft); color: var(--fg); font-size: .82rem; }
+.demo .wrap { padding-block: 8px; }
+
+main .wrap { padding-block: 16px 120px; display: grid; gap: 14px; }
+h2 { margin: 0; font-family: var(--f-display); font-size: 1.35rem; text-wrap: balance; }
+.sub { color: var(--muted); font-size: .88rem; margin: 2px 0 0; }
+.back { background: none; border: 0; color: var(--navy-2); font-weight: 700; padding: 0; cursor: pointer; display: inline-flex; gap: 4px; align-items: center; }
+
+.btn { border-radius: 12px; border: 1px solid var(--line); background: var(--surface); padding: 11px 16px; font-weight: 700; cursor: pointer; }
+.btn.primary { background: var(--navy-2); color: #fff; border-color: transparent; }
+.btn.gold { background: var(--gold); color: #1d1607; border-color: transparent; }
+.btn.danger { background: var(--no-bg); color: var(--no); border-color: transparent; }
+.btn.small { padding: 7px 12px; font-size: .85rem; border-radius: 10px; }
+.btn:disabled { opacity: .55; cursor: default; }
+:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; box-shadow: var(--shadow); }
+.grid { display: grid; gap: 12px; }
+.cells { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
+.cell-card { text-align: left; cursor: pointer; display: grid; gap: 8px; }
+.cell-card h3 { margin: 0; font-size: 1.05rem; }
+.cell-card .meta { font-size: .84rem; color: var(--muted); }
+.bar { height: 8px; border-radius: 99px; background: var(--chip); overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--ok); border-radius: 99px; }
+
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; }
+.stat b { display: block; font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.stat span { font-size: .7rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 700; }
+.stat.ok b { color: var(--ok); } .stat.no b { color: var(--no); }
+
+.tabs { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--chip); border-radius: 12px; padding: 4px; gap: 4px; }
+.tabs button { border: 0; background: transparent; border-radius: 9px; padding: 9px 6px; font-weight: 700; color: var(--muted); cursor: pointer; }
+.tabs button[aria-selected="true"] { background: var(--surface); color: var(--fg); box-shadow: var(--shadow); }
+
+.daterow { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.daterow input { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); }
+.daterow .dname { font-weight: 700; text-transform: capitalize; }
+
+.att { display: grid; gap: 8px; }
+.att-row { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px 10px 10px 14px; }
+.att-row .nm { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.att-row .nm small { display: block; color: var(--muted); font-weight: 500; font-size: .78rem; }
+.seg { display: flex; gap: 6px; flex: none; }
+.seg button { border: 1.5px solid var(--line); background: var(--surface); border-radius: 10px; padding: 9px 12px; font-weight: 700; font-size: .85rem; cursor: pointer; min-width: 44px; }
+.seg .p[aria-pressed="true"] { background: var(--ok); border-color: var(--ok); color: #fff; }
+.seg .a[aria-pressed="true"] { background: var(--no); border-color: var(--no); color: #fff; }
+.att-row.p { border-color: var(--ok); background: color-mix(in srgb, var(--ok-bg) 60%, var(--surface)); }
+.att-row.a { border-color: var(--no); background: color-mix(in srgb, var(--no-bg) 60%, var(--surface)); }
+@media (max-width: 420px) { .seg button .lbl { display: none; } }
+
+.stepper { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); }
+.stepper button { border: 0; background: transparent; width: 44px; height: 42px; font-size: 1.3rem; font-weight: 700; cursor: pointer; }
+.stepper output { min-width: 40px; text-align: center; font-weight: 800; font-variant-numeric: tabular-nums; }
+.field { display: grid; gap: 5px; }
+.field label { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.field input, .field textarea, .field select { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); }
+.field textarea { min-height: 76px; resize: vertical; }
+.row2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
+@media (max-width: 520px) { .row2 { grid-template-columns: 1fr; } }
+
+.savebar { position: fixed; left: 0; right: 0; bottom: 0; background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(8px); border-top: 1px solid var(--line); z-index: 10; }
+.savebar .wrap { padding-block: 10px calc(10px + env(safe-area-inset-bottom, 0px)); display: flex; gap: 10px; align-items: center; }
+.savebar .info { font-size: .85rem; color: var(--muted); flex: 1; min-width: 0; }
+.savebar .btn { flex: none; }
+
+.list { display: grid; gap: 8px; }
+.item { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+.item .grow { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.item small { color: var(--muted); display: block; font-size: .8rem; }
+.pct { font-weight: 800; font-variant-numeric: tabular-nums; }
+.pct.good { color: var(--ok); } .pct.low { color: var(--no); }
+.empty { text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 14px; padding: 24px 16px; background: var(--surface); display: grid; gap: 8px; justify-items: center; }
+.empty strong { color: var(--fg); font-size: 1.05rem; }
+.inline-confirm { display: flex; gap: 6px; flex-wrap: wrap; }
+.err { color: var(--no); font-size: .85rem; }
+.live { font-family: var(--f-body); font-size: .72rem; font-weight: 700; color: var(--ok); background: var(--ok-bg); border-radius: 99px; padding: 3px 9px; vertical-align: middle; letter-spacing: .02em; }
+@media (prefers-reduced-motion: no-preference) { .live { animation: pulse 2.4s ease-in-out infinite; } @keyframes pulse { 50% { opacity: .55; } } }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(84px + env(safe-area-inset-bottom, 0px)); background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-weight: 700; z-index: 40; max-width: calc(100% - 32px); text-align: center; }
+.login { min-height: 60vh; display: grid; place-items: center; text-align: center; }
+.login .card { max-width: 420px; display: grid; gap: 14px; justify-items: center; padding: 28px 22px; }
+.gbtn { display: inline-flex; gap: 10px; align-items: center; }
+.tag { font-size: .7rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; background: var(--chip); color: var(--navy-2); }
+@media (prefers-color-scheme: dark) { .tag { color: #bcd4ff; } }
+.sheet-scrim { position: fixed; inset: 0; background: rgba(6,17,43,.55); z-index: 30; display: grid; align-items: end; justify-items: center; }
+.sheet { background: var(--surface); width: 100%; max-width: 560px; max-height: 92vh; overflow-y: auto; border-radius: 18px 18px 0 0; padding: 18px max(18px, env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(18px, env(safe-area-inset-left,0px)); display: grid; gap: 12px; }
+@media (min-width: 640px) { .sheet-scrim { align-items: center; } .sheet { border-radius: 18px; } }
+.actions { display: flex; gap: 10px; justify-content: space-between; flex-wrap: wrap; }
+.actions .r { display: flex; gap: 10px; margin-left: auto; }
+.spinner { width: 28px; height: 28px; border: 3px solid var(--line); border-top-color: var(--navy-2); border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.5s; } }
+.hint { background: var(--chip); border-radius: 10px; padding: 10px 12px; font-size: .85rem; color: var(--fg); width: 100%; }
+.btn.wa { background: #1f9d55; color: #fff; border-color: transparent; }
+.top .who b { font-weight: 700; }
+.top .who { max-width: 42%; }
+@media (max-width: 480px) { .top p { display: none; } .top h1 { font-size: 1.1rem; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10.5 3h3v6h6v3h-6v9h-3v-9h-6V9h6z" fill="#0c2868"/></svg></div>
+    <div>
+      <h1>Células Bethesda</h1>
+      <p>Iglesia Cristiana Bethesda · Pastor Nery y Marlin Aldana</p>
+    </div>
+    <div class="who" id="who" hidden><div id="who-name"></div><button id="logout" type="button">Salir</button></div>
+  </div>
+</header>
+<div class="demo" id="demo" hidden><div class="wrap"><b>Modo de prueba.</b> Lo que guardes aquí se queda solo en este teléfono. Cuando conectes Firebase, todos compartirán los mismos datos.</div></div>
+<main><div class="wrap" id="app"><div class="empty"><div class="spinner"></div>Cargando…</div></div></main>
+<div class="savebar" id="savebar" hidden><div class="wrap"><div class="info" id="savebar-info"></div><button class="btn primary" id="savebar-btn" type="button">Guardar asistencia</button></div></div>
+<div class="toast" id="toast" hidden></div>
+
+<script type="module">
+/* =====================================================================
+   CONFIGURACIÓN DE FIREBASE
+   Pega aquí los datos de tu proyecto de Firebase (Configuración del
+   proyecto → Tus apps → Configuración del SDK). Mientras esté en null,
+   la página funciona en "modo de prueba" dentro del teléfono.
+   ===================================================================== */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCK38WZ8Mm6PBL6XV6U_9X-MsyZAbjTR1Y",
+  authDomain: "celulas-bethesda.firebaseapp.com",
+  projectId: "celulas-bethesda",
+  storageBucket: "celulas-bethesda.firebasestorage.app",
+  messagingSenderId: "196187591471",
+  appId: "1:196187591471:web:91fe904d172b9f983807da",
+};
+
+const FB_VER = "10.12.2";
+const $ = (s, r = document) => r.querySelector(s);
+const app = $("#app");
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const localISO = (d) => { d = new Date(d); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+const todayISO = () => localISO(new Date());
+const MESES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+const DIAS = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+const fmtFecha = (iso, withDay = true) => { const [y, m, d] = iso.split("-").map(Number); const dt = new Date(y, m - 1, d); return (withDay ? DIAS[dt.getDay()] + " " : "") + d + " de " + MESES[m - 1] + (y !== new Date().getFullYear() ? " de " + y : ""); };
+const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+const plural = (n, a, b) => n + " " + (n === 1 ? a : b);
+const byName = (a, b) => (a.nombre || "").localeCompare(b.nombre || "", "es");
+const normUser = (u) => String(u || "").trim().toLowerCase().replace(/\s+/g, "");
+const USER_RE = /^[a-z0-9._-]{3,30}$/;
+const ROLES = { admin: "Administrador", pastor: "Pastor (solo ver)", lider: "Líder de célula" };
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (t.hidden = true), 2600); }
+async function hashOf(usuario, clave) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("bethesda|" + usuario + "|" + clave));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+function summarize(m, members) {
+  const ids = new Set(members.map((x) => x.id));
+  const vals = Object.entries(m.asistencia || {}).filter(([k]) => ids.has(k)).map(([, v]) => v);
+  return { ...m, presentes: vals.filter((v) => v === "p").length, ausentes: vals.filter((v) => v === "a").length, total: members.length, actualizado: new Date().toISOString() };
+}
+
+/* ------------------------------------------------------------------ datos: modo de prueba (este teléfono) */
+function demoStore() {
+  const KEY = "celulas-bethesda-demo-v4", SKEY = "celulas-bethesda-sesion";
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || null; } catch { return null; } };
+  const save = (x) => { try { localStorage.setItem(KEY, JSON.stringify(x)); } catch {} };
+  let s = load();
+  if (!s) {
+    const mid = () => Math.random().toString(36).slice(2, 10);
+    const members = ["Ashly", "Caty", "Daniel", "Diego", "Josué", "Melissa", "Santiago"].map((n) => ({ id: mid(), nombre: n, telefono: "" }));
+    s = {
+      users: {
+        admin: { nombre: "Administrador", rol: "admin", celula: "", clave: "bethesda" },
+        bethesda: { nombre: "Pastor Nery Aldana", rol: "pastor", celula: "", clave: "2287" },
+        daniel: { nombre: "Daniel", rol: "lider", celula: "demo1", clave: "danielbethesda" },
+      },
+      cells: { demo1: { id: "demo1", nombre: "Célula 18 Barnacle", lider: "Daniel", dia: "Viernes", hora: "8:00 PM", direccion: "" } },
+      members: { demo1: members }, meetings: { demo1: {} },
+    };
+    save(s);
+  }
+  const clone = (x) => JSON.parse(JSON.stringify(x));
+  let me = null;
+  const asMe = (u) => { const d = s.users[u]; return d ? { usuario: u, nombre: d.nombre || u, rol: d.rol, celula: d.celula || "" } : null; };
+  return {
+    mode: "demo",
+    async needsSetup() { return false; },
+    async login(usuario, clave) { const u = normUser(usuario); const d = s.users[u]; if (!d || d.clave !== clave) throw { code: "bad-login" }; try { localStorage.setItem(SKEY, u); } catch {} me = asMe(u); return me; },
+    async current() { let u = null; try { u = localStorage.getItem(SKEY); } catch {} me = u ? asMe(u) : null; return me; },
+    async signOut() { try { localStorage.removeItem(SKEY); } catch {} me = null; },
+    async users() { return Object.entries(s.users).map(([u, d]) => ({ usuario: u, nombre: d.nombre, rol: d.rol, celula: d.celula || "" })).sort(byName); },
+    async saveUser(u, clave, isNew) {
+      if (isNew && s.users[u.usuario]) throw { code: "exists" };
+      const prev = s.users[u.usuario] || {};
+      s.users[u.usuario] = { nombre: u.nombre, rol: u.rol, celula: u.rol === "lider" ? u.celula : "", clave: clave || prev.clave };
+      save(s);
+    },
+    async deleteUser(u) { delete s.users[u]; save(s); },
+    async cells() {
+      if (me.rol === "lider") return me.celula && s.cells[me.celula] ? [clone(s.cells[me.celula])] : [];
+      return Object.values(s.cells).map(clone).sort(byName);
+    },
+    async saveCell(c) { const id = c.id || "c" + Date.now().toString(36); s.cells[id] = { ...c, id }; s.members[id] ||= []; s.meetings[id] ||= {}; save(s); return id; },
+    async deleteCell(id) { delete s.cells[id]; delete s.members[id]; delete s.meetings[id]; save(s); },
+    async members(cid) { return clone(s.members[cid] || []).sort(byName); },
+    async saveMember(cid, m) { const list = s.members[cid] ||= []; if (m.id) { const i = list.findIndex((x) => x.id === m.id); list[i] = { ...list[i], ...m }; } else list.push({ ...m, id: Math.random().toString(36).slice(2, 10) }); save(s); },
+    async deleteMember(cid, id) { s.members[cid] = (s.members[cid] || []).filter((m) => m.id !== id); save(s); },
+    async meeting(cid, f) { return clone((s.meetings[cid] || {})[f] || null); },
+    async saveMeeting(cid, f, data) { (s.meetings[cid] ||= {})[f] = data; save(s); },
+    async meetings(cid, n = 30) { return Object.values(s.meetings[cid] || {}).sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, n).map(clone); },
+    watch(cells, cb) { const h = (e) => { if (e.key === KEY) { s = load() || s; cb(); } }; addEventListener("storage", h); return () => removeEventListener("storage", h); },
+  };
+}
+
+/* ------------------------------------------------------------------ datos: Firebase (compartido entre todos) */
+async function firebaseStore(cfg) {
+  const base = `https://www.gstatic.com/firebasejs/${FB_VER}/`;
+  const [{ initializeApp }, A, F] = await Promise.all([import(base + "firebase-app.js"), import(base + "firebase-auth.js"), import(base + "firebase-firestore.js")]);
+  const fbApp = initializeApp(cfg);
+  const auth = A.getAuth(fbApp);
+  const db = F.getFirestore(fbApp);
+  await new Promise((res) => { const off = A.onAuthStateChanged(auth, () => { off(); res(); }); });
+  const ensureAnon = async () => { if (!auth.currentUser) await A.signInAnonymously(auth); return auth.currentUser.uid; };
+  const D = (...p) => F.doc(db, ...p);
+  let me = null;
+  const asMe = (u, d) => ({ usuario: u, nombre: d.nombre || u, rol: d.rol, celula: d.celula || "" });
+  const store = {
+    mode: "firebase",
+    async needsSetup() { await ensureAnon(); const c = await F.getDoc(D("config", "estado")); return !c.exists(); },
+    async setupAdmin(nombre, clave) {
+      await ensureAnon();
+      const b = F.writeBatch(db);
+      b.set(D("usuarios", "admin"), { nombre, rol: "admin", celula: "", hash: await hashOf("admin", clave) });
+      b.set(D("config", "estado"), { listo: true, creado: new Date().toISOString() });
+      await b.commit();
+      return store.login("admin", clave);
+    },
+    async login(usuario, clave) {
+      const uid = await ensureAnon();
+      const u = normUser(usuario);
+      if (!USER_RE.test(u)) throw { code: "bad-login" };
+      const hash = await hashOf(u, clave);
+      try { await F.setDoc(D("sesiones", uid), { usuario: u, hash, creado: new Date().toISOString() }); }
+      catch (e) { if (String(e.code || "").includes("permission")) throw { code: "bad-login" }; throw e; }
+      const d = await F.getDoc(D("usuarios", u));
+      me = asMe(u, d.data());
+      return me;
+    },
+    async current() {
+      if (!auth.currentUser) return null;
+      try {
+        const sd = await F.getDoc(D("sesiones", auth.currentUser.uid));
+        if (!sd.exists()) return null;
+        const u = sd.data().usuario;
+        const ud = await F.getDoc(D("usuarios", u));
+        if (!ud.exists() || ud.data().hash !== sd.data().hash) return null;
+        me = asMe(u, ud.data());
+        return me;
+      } catch { return null; }
+    },
+    async signOut() { try { await F.deleteDoc(D("sesiones", auth.currentUser.uid)); } catch {} me = null; },
+    async users() {
+      const sn = await F.getDocs(F.collection(db, "usuarios"));
+      return sn.docs.map((d) => { const { hash, ...r } = d.data(); return { usuario: d.id, ...r }; }).sort(byName);
+    },
+    async saveUser(u, clave, isNew) {
+      if (isNew) { const ex = await F.getDoc(D("usuarios", u.usuario)); if (ex.exists()) throw { code: "exists" }; }
+      const body = { nombre: u.nombre, rol: u.rol, celula: u.rol === "lider" ? u.celula : "" };
+      if (clave) body.hash = await hashOf(u.usuario, clave);
+      await F.setDoc(D("usuarios", u.usuario), body, { merge: true });
+      if (clave && me && u.usuario === me.usuario) await store.login(u.usuario, clave);
+    },
+    async deleteUser(u) { await F.deleteDoc(D("usuarios", u)); },
+    async cells() {
+      if (me.rol === "lider") {
+        if (!me.celula) return [];
+        const c = await F.getDoc(D("celulas", me.celula));
+        return c.exists() ? [{ id: c.id, ...c.data() }] : [];
+      }
+      const sn = await F.getDocs(F.collection(db, "celulas"));
+      return sn.docs.map((d) => ({ id: d.id, ...d.data() })).sort(byName);
+    },
+    async saveCell(c) { const { id, ...body } = c; if (id) { await F.setDoc(D("celulas", id), body); return id; } const ref = await F.addDoc(F.collection(db, "celulas"), body); return ref.id; },
+    async deleteCell(id) { await F.deleteDoc(D("celulas", id)); },
+    async members(cid) { const sn = await F.getDocs(F.collection(db, "celulas", cid, "miembros")); return sn.docs.map((d) => ({ id: d.id, ...d.data() })).sort(byName); },
+    async saveMember(cid, m) { const { id, ...body } = m; if (id) await F.setDoc(D("celulas", cid, "miembros", id), body, { merge: true }); else await F.addDoc(F.collection(db, "celulas", cid, "miembros"), body); },
+    async deleteMember(cid, id) { await F.deleteDoc(D("celulas", cid, "miembros", id)); },
+    async meeting(cid, f) { const d = await F.getDoc(D("celulas", cid, "reuniones", f)); return d.exists() ? d.data() : null; },
+    async saveMeeting(cid, f, data) { await F.setDoc(D("celulas", cid, "reuniones", f), data); },
+    async meetings(cid, n = 30) { const sn = await F.getDocs(F.query(F.collection(db, "celulas", cid, "reuniones"), F.orderBy("fecha", "desc"), F.limit(n))); return sn.docs.map((d) => d.data()); },
+    watch(cells, cb) {
+      const on = (q) => { let first = true; return F.onSnapshot(q, () => { if (first) { first = false; return; } cb(); }, () => {}); };
+      const unsubs = [on(F.collection(db, "celulas"))];
+      cells.forEach((c) => unsubs.push(on(F.query(F.collection(db, "celulas", c.id, "reuniones"), F.orderBy("fecha", "desc"), F.limit(1)))));
+      return () => unsubs.forEach((u) => u());
+    },
+  };
+  return store;
+}
+
+/* ------------------------------------------------------------------ app */
+let store, me, unwatch = null;
+const stopWatch = () => { if (unwatch) { unwatch(); unwatch = null; } };
+const state = { view: "home", cell: null, tab: "asistencia", fecha: todayISO(), single: false };
+const seeAll = () => me.rol === "admin" || me.rol === "pastor";
+const readOnly = () => me.rol === "pastor";
+const savebar = { el: $("#savebar"), info: $("#savebar-info"), btn: $("#savebar-btn"), show(info, label, fn) { this.info.textContent = info; this.btn.textContent = label; this.btn.onclick = fn; this.btn.disabled = false; this.el.hidden = false; }, hide() { this.el.hidden = true; } };
+
+function errMsg(e) {
+  const c = String(e?.code || "");
+  if (c === "bad-login") return "Usuario o clave incorrectos.";
+  if (c === "exists") return "Ese usuario ya existe. Escoge otro nombre de usuario.";
+  if (c.includes("permission-denied")) return "No tienes permiso para esto. Pide al administrador que revise tu usuario.";
+  if (c.includes("unavailable") || c.includes("network")) return "No hay conexión a internet. Inténtalo de nuevo.";
+  return "Algo salió mal. Inténtalo de nuevo.";
+}
+
+async function boot() {
+  try { store = FIREBASE_CONFIG ? await firebaseStore(FIREBASE_CONFIG) : demoStore(); }
+  catch { app.innerHTML = `<div class="empty"><strong>No se pudo conectar</strong>Revisa tu conexión a internet y vuelve a abrir la página.</div>`; return; }
+  $("#demo").hidden = store.mode !== "demo";
+  try { if (await store.needsSetup()) return showSetup(); } catch { app.innerHTML = `<div class="empty"><strong>No se pudo conectar</strong>Revisa que Firebase esté bien configurado (inicio de sesión anónimo activado).</div>`; return; }
+  me = await store.current();
+  if (!me) return showLogin();
+  start();
+}
+
+function start() {
+  $("#who").hidden = false;
+  $("#who-name").innerHTML = `<b>${esc(me.nombre)}</b><br>${esc(ROLES[me.rol] || "")}`;
+  $("#logout").onclick = async () => { stopWatch(); await store.signOut(); me = null; $("#who").hidden = true; showLogin(); };
+  state.tab = readOnly() ? "historial" : "asistencia";
+  home();
+}
+
+function showLogin(msg) {
+  stopWatch(); savebar.hide();
+  app.innerHTML = `<div class="login"><form class="card" id="lf" novalidate>
+    <h2>Entrar</h2>
+    <p class="sub">Escribe el usuario y la clave que te dio el administrador.</p>
+    <div class="field" style="width:100%;text-align:left"><label for="l-user">Usuario</label><input id="l-user" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Ej. daniel"></div>
+    <div class="field" style="width:100%;text-align:left"><label for="l-pass">Clave</label><input id="l-pass" type="password" autocomplete="current-password" placeholder="Tu clave"></div>
+    <label class="sub" style="display:flex;gap:6px;align-items:center;justify-self:start;margin:0"><input type="checkbox" id="l-show"> Mostrar clave</label>
+    <button class="btn primary" type="submit" style="width:100%">Entrar</button>
+    <p class="err" id="l-err" ${msg ? "" : "hidden"}>${esc(msg || "")}</p>
+    ${store.mode === "demo" ? `<div class="hint">Usuarios de prueba:<br><b>daniel</b> / danielbethesda (líder) · <b>bethesda</b> / 2287 (pastor) · <b>admin</b> / bethesda</div>` : ""}
+  </form></div>`;
+  $("#l-show").onchange = (e) => ($("#l-pass").type = e.target.checked ? "text" : "password");
+  setTimeout(() => $("#l-user").focus(), 30);
+  $("#lf").onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector("button[type=submit]"); btn.disabled = true; btn.textContent = "Entrando…";
+    try { me = await store.login($("#l-user").value, $("#l-pass").value); start(); }
+    catch (err) { $("#l-err").textContent = errMsg(err); $("#l-err").hidden = false; btn.disabled = false; btn.textContent = "Entrar"; }
+  };
+}
+
+function showSetup() {
+  app.innerHTML = `<div class="login"><form class="card" id="sf" novalidate>
+    <h2>Primer paso: tu clave de administrador</h2>
+    <p class="sub">Esto se hace una sola vez. Tu usuario será <b>admin</b>. Con él creas las células y las claves de los líderes y del pastor.</p>
+    <div class="field" style="width:100%;text-align:left"><label for="s-name">Tu nombre</label><input id="s-name" placeholder="Ej. Diego"></div>
+    <div class="field" style="width:100%;text-align:left"><label for="s-p1">Clave (mínimo 4)</label><input id="s-p1" type="password" autocomplete="new-password"></div>
+    <div class="field" style="width:100%;text-align:left"><label for="s-p2">Repite la clave</label><input id="s-p2" type="password" autocomplete="new-password"></div>
+    <button class="btn primary" type="submit" style="width:100%">Guardar y entrar</button>
+    <p class="err" id="s-err" hidden></p>
+  </form></div>`;
+  $("#sf").onsubmit = async (e) => {
+    e.preventDefault();
+    const err = $("#s-err"), p1 = $("#s-p1").value, p2 = $("#s-p2").value, n = $("#s-name").value.trim() || "Administrador";
+    if (p1.length < 4) { err.textContent = "La clave debe tener al menos 4 letras o números."; err.hidden = false; return; }
+    if (p1 !== p2) { err.textContent = "Las dos claves no son iguales."; err.hidden = false; return; }
+    try { me = await store.setupAdmin(n, p1); start(); } catch (e2) { err.textContent = errMsg(e2); err.hidden = false; }
+  };
+}
+
+/* ---------- inicio */
+async function home() {
+  stopWatch();
+  state.view = "home"; savebar.hide();
+  app.innerHTML = `<div class="empty"><div class="spinner"></div>Cargando células…</div>`;
+  let cells;
+  try { cells = await store.cells(); } catch (e) { app.innerHTML = `<div class="empty"><strong>No se pudieron cargar las células</strong>${esc(errMsg(e))}</div>`; return; }
+  if (me.rol === "lider") {
+    if (!cells.length) { app.innerHTML = `<div class="empty"><strong>Tu usuario no tiene una célula asignada</strong>Pide al administrador que te asigne tu célula.</div>`; return; }
+    state.single = true; return openCell(cells[0]);
+  }
+  state.single = false;
+  const last = await Promise.all(cells.map((c) => store.meetings(c.id, 1).then((r) => r[0] || null).catch(() => null)));
+  const totP = last.reduce((s, m) => s + (m?.presentes || 0), 0);
+  const totI = last.reduce((s, m) => s + (m?.invitados || 0), 0);
+  const totM = last.reduce((s, m) => s + (m?.total || 0), 0);
+  app.innerHTML = `
+    <div><h2>Todas las células <span class="live" title="Se actualiza solo cuando un líder guarda">● En vivo</span></h2>
+      <p class="sub">${readOnly() ? "Aquí ves los reportes de todas las células. Toca una para ver su historial." : "Toca una célula para pasar asistencia o ver su historial."}</p></div>
+    ${cells.length ? `<div class="stats">
+      <div class="stat ok"><b>${totP}</b><span>Presentes</span></div>
+      <div class="stat"><b>${totM}</b><span>Miembros</span></div>
+      <div class="stat"><b>${totI}</b><span>Invitados</span></div></div>
+      <p class="sub" style="margin-top:-6px">Suma de la última reunión de cada célula.</p>
+      <button class="btn wa" id="wa" type="button">Enviar resumen por WhatsApp</button>` : ""}
+    <div class="cells" id="cells"></div>
+    ${me.rol === "admin" ? `<div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn gold" id="newcell" type="button">+ Nueva célula</button><button class="btn" id="users" type="button">Usuarios y claves</button></div>` : ""}`;
+  const box = $("#cells");
+  if (!cells.length) box.innerHTML = me.rol === "admin"
+    ? `<div class="empty"><strong>Todavía no hay células</strong>Crea la primera con el botón “Nueva célula”. Después crea el usuario y la clave de su líder en “Usuarios y claves”.</div>`
+    : `<div class="empty"><strong>Todavía no hay células</strong>El administrador todavía no ha creado las células.</div>`;
+  cells.forEach((c, i) => {
+    const m = last[i];
+    const pct = m && m.total ? Math.round((m.presentes / m.total) * 100) : 0;
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "card cell-card";
+    b.innerHTML = `<h3>${esc(c.nombre)}</h3>
+      <div class="meta">${c.lider ? "Líder: " + esc(c.lider) : "Sin líder asignado"}${c.dia ? " · " + esc(c.dia) : ""}${c.hora ? " " + esc(c.hora) : ""}</div>
+      ${m ? `<div class="bar" aria-hidden="true"><i style="width:${pct}%"></i></div><div class="meta"><b style="color:var(--fg)">${m.presentes} de ${m.total}</b> presentes · ${plural(m.invitados || 0, "invitado", "invitados")} · ${esc(fmtFecha(m.fecha, false))}</div>` : `<div class="meta">Sin reuniones registradas</div>`}`;
+    b.onclick = () => openCell(c);
+    box.appendChild(b);
+  });
+  if ($("#wa")) $("#wa").onclick = () => resumen(cells);
+  if (me.rol === "admin") { $("#newcell").onclick = () => cellForm(null); $("#users").onclick = usersView; }
+  let t;
+  unwatch = store.watch(cells, () => { clearTimeout(t); t = setTimeout(() => { if (state.view === "home") { home(); toast("Nuevo reporte de un líder"); } }, 700); });
+}
+
+/* ---------- resumen para WhatsApp */
+async function resumen(cells) {
+  const btn = $("#wa"); btn.disabled = true; btn.textContent = "Preparando resumen…";
+  try {
+    const start = new Date(); start.setDate(start.getDate() - 6);
+    const desde = localISO(start), hoy = todayISO();
+    const data = await Promise.all(cells.map(async (c) => ({ c, ms: await store.meetings(c.id, 3), mem: await store.members(c.id) })));
+    let P = 0, T = 0, I = 0, O = 0, rep = 0;
+    const lines = [], faltas = [], pet = [];
+    data.forEach(({ c, ms, mem }) => {
+      const m = ms.find((x) => x.fecha >= desde && x.fecha <= hoy);
+      if (m) {
+        rep++; P += m.presentes; T += m.total; I += m.invitados || 0; O += parseFloat(String(m.ofrenda || "0").replace(/[^0-9.]/g, "")) || 0;
+        lines.push(`✅ ${c.nombre} – ${m.presentes}/${m.total} · ${plural(m.invitados || 0, "invitado", "invitados")}`);
+        if (m.notas) pet.push(`• ${m.notas.replace(/\s*\n\s*/g, "; ")} (${c.nombre})`);
+      } else lines.push(`⏳ ${c.nombre} – no ha reportado`);
+      if (ms.length >= 3) mem.forEach((p) => { if (ms.every((x) => x.asistencia?.[p.id] === "a")) faltas.push(`• ${p.nombre} (${c.nombre})`); });
+    });
+    const pct = T ? Math.round((P / T) * 100) : 0;
+    const txt = [
+      "📊 *RESUMEN DE CÉLULAS*", "Iglesia Cristiana Bethesda", `Semana del ${fmtFecha(desde, false)} al ${fmtFecha(hoy, false)}`, "",
+      `👥 *Total presentes:* ${P} de ${T} (${pct}%)`, `🙋 *Invitados nuevos:* ${I}`, `💵 *Ofrendas:* $${O.toFixed(2)}`, `📋 *Reportaron:* ${rep} de ${cells.length} células`, "",
+      "*Por célula:*", ...lines,
+      ...(faltas.length ? ["", "⚠️ *Faltaron 3 veces seguidas:*", ...faltas] : []),
+      ...(pet.length ? ["", "🙏 *Peticiones de oración:*", ...pet] : []),
+      "", "“Y perseverando unánimes cada día en el templo, y partiendo el pan en las casas...” – Hechos 2:46",
+    ].join("\n");
+    const scrim = document.createElement("div"); scrim.className = "sheet-scrim";
+    scrim.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-label="Resumen para WhatsApp">
+      <h2>Resumen para WhatsApp</h2>
+      <p class="sub" style="margin:0">Revisa el mensaje y ábrelo en WhatsApp para mandarlo al pastor o al grupo de líderes.</p>
+      <textarea id="wa-txt" readonly style="width:100%;min-height:300px;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);font-size:.88rem"></textarea>
+      <div class="actions"><button class="btn" type="button" data-x>Cerrar</button><div class="r"><button class="btn" type="button" data-c>Copiar</button><a class="btn wa" target="_blank" rel="noopener" style="text-decoration:none" href="https://wa.me/?text=${encodeURIComponent(txt)}">Abrir WhatsApp</a></div></div></div>`;
+    document.body.appendChild(scrim);
+    $("#wa-txt").value = txt;
+    const close = () => scrim.remove();
+    scrim.onclick = (e) => { if (e.target === scrim) close(); };
+    scrim.querySelector("[data-x]").onclick = close;
+    scrim.querySelector("[data-c]").onclick = async () => { try { await navigator.clipboard.writeText(txt); toast("Resumen copiado"); } catch { $("#wa-txt").select(); toast("Selecciona y copia el texto"); } };
+  } catch (e) { toast(errMsg(e)); }
+  finally { btn.disabled = false; btn.textContent = "Enviar resumen por WhatsApp"; }
+}
+
+/* ---------- formulario de célula (administrador) */
+function cellForm(c) {
+  const scrim = document.createElement("div"); scrim.className = "sheet-scrim";
+  scrim.innerHTML = `<form class="sheet" novalidate>
+    <h2>${c ? "Editar célula" : "Nueva célula"}</h2>
+    <div class="field"><label for="c-nombre">Nombre de la célula</label><input id="c-nombre" required placeholder="Ej. Célula 18 Barnacle" value="${esc(c?.nombre)}"></div>
+    <div class="field"><label for="c-lider">Nombre del líder</label><input id="c-lider" placeholder="Nombre del líder" value="${esc(c?.lider)}"></div>
+    <div class="row2">
+      <div class="field"><label for="c-dia">Día</label><select id="c-dia">${["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"].map((d) => `<option ${(c?.dia ?? "Viernes") === d ? "selected" : ""}>${d}</option>`).join("")}</select></div>
+      <div class="field"><label for="c-hora">Hora</label><input id="c-hora" placeholder="8:00 PM" value="${esc(c?.hora ?? "8:00 PM")}"></div>
+    </div>
+    <div class="field"><label for="c-dir">Dirección (opcional)</label><input id="c-dir" value="${esc(c?.direccion)}"></div>
+    <p class="sub" style="margin:0">Para que el líder pueda entrar, crea su usuario y clave en “Usuarios y claves” y asígnale esta célula.</p>
+    <p class="err" hidden></p>
+    <div class="actions"><div class="del"></div><div class="r"><button class="btn" type="button" data-x>Cancelar</button><button class="btn primary" type="submit">Guardar</button></div></div>
+  </form>`;
+  document.body.appendChild(scrim);
+  const f = scrim.querySelector("form"), err = f.querySelector(".err");
+  const close = () => scrim.remove();
+  scrim.onclick = (e) => { if (e.target === scrim) close(); };
+  f.querySelector("[data-x]").onclick = close;
+  if (c) {
+    const del = f.querySelector(".del");
+    const b = document.createElement("button"); b.type = "button"; b.className = "btn danger"; b.textContent = "Borrar célula";
+    b.onclick = () => { del.innerHTML = `<div class="inline-confirm"><button type="button" class="btn danger">Sí, borrar todo</button><button type="button" class="btn">No</button></div>`;
+      const [y, n] = del.querySelectorAll("button");
+      y.onclick = async () => { try { await store.deleteCell(c.id); close(); toast("Célula borrada"); home(); } catch (e) { err.textContent = errMsg(e); err.hidden = false; } };
+      n.onclick = () => { del.textContent = ""; del.appendChild(b); }; };
+    del.appendChild(b);
+  }
+  setTimeout(() => $("#c-nombre").focus(), 30);
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    const body = { id: c?.id, nombre: $("#c-nombre").value.trim(), lider: $("#c-lider").value.trim(), dia: $("#c-dia").value, hora: $("#c-hora").value.trim(), direccion: $("#c-dir").value.trim() };
+    if (!body.nombre) { err.textContent = "Escribe el nombre de la célula."; err.hidden = false; return; }
+    try { const id = await store.saveCell(body); close(); toast(c ? "Célula guardada" : "Célula creada"); if (state.view === "cell") openCell({ ...body, id }); else home(); }
+    catch (e2) { err.textContent = errMsg(e2); err.hidden = false; }
+  };
+}
+
+/* ---------- usuarios y claves (administrador) */
+async function usersView() {
+  stopWatch(); state.view = "users"; savebar.hide();
+  app.innerHTML = `<div class="empty"><div class="spinner"></div></div>`;
+  let users, cells;
+  try { [users, cells] = await Promise.all([store.users(), store.cells()]); } catch (e) { app.innerHTML = `<div class="empty"><strong>No se pudo cargar</strong>${esc(errMsg(e))}</div>`; return; }
+  const cname = (id) => cells.find((c) => c.id === id)?.nombre || "Sin célula";
+  app.innerHTML = `<div><button class="back" id="back" type="button">‹ Células</button>
+      <h2 style="margin-top:6px">Usuarios y claves</h2>
+      <p class="sub">Crea un usuario para cada líder (con su célula) y uno para el pastor. El pastor solo puede ver los resultados.</p></div>
+    <button class="btn gold" id="adduser" type="button">+ Nuevo usuario</button>
+    <div class="list" id="ulist"></div>`;
+  $("#back").onclick = home;
+  $("#adduser").onclick = () => userForm(null, cells);
+  users.forEach((u) => {
+    const it = document.createElement("div"); it.className = "item";
+    it.innerHTML = `<div class="grow"><b>${esc(u.nombre || u.usuario)}</b><small>Usuario: <b>${esc(u.usuario)}</b> · ${esc(ROLES[u.rol] || u.rol)}${u.rol === "lider" ? " · " + esc(cname(u.celula)) : ""}</small></div><button class="btn small" type="button">Editar</button>`;
+    it.querySelector("button").onclick = () => userForm(u, cells);
+    $("#ulist").appendChild(it);
+  });
+}
+
+function userForm(u, cells) {
+  const isNew = !u;
+  const scrim = document.createElement("div"); scrim.className = "sheet-scrim";
+  scrim.innerHTML = `<form class="sheet" novalidate>
+    <h2>${isNew ? "Nuevo usuario" : "Editar usuario"}</h2>
+    <div class="field"><label for="u-nombre">Nombre</label><input id="u-nombre" placeholder="Ej. Jorge Flores" value="${esc(u?.nombre)}"></div>
+    <div class="row2">
+      <div class="field"><label for="u-user">Usuario</label><input id="u-user" autocapitalize="none" spellcheck="false" placeholder="Ej. daniel" value="${esc(u?.usuario)}" ${isNew ? "" : "disabled"}></div>
+      <div class="field"><label for="u-pass">${isNew ? "Clave" : "Clave nueva (opcional)"}</label><input id="u-pass" type="text" autocomplete="off" placeholder="${isNew ? "Mínimo 4" : "Déjala vacía para no cambiarla"}"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label for="u-rol">Tipo de acceso</label><select id="u-rol">${Object.entries(ROLES).map(([k, l]) => `<option value="${k}" ${(u?.rol || "lider") === k ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+      <div class="field" id="u-cel-f"><label for="u-cel">Célula</label><select id="u-cel"><option value="">— Escoge —</option>${cells.map((c) => `<option value="${esc(c.id)}" ${u?.celula === c.id ? "selected" : ""}>${esc(c.nombre)}</option>`).join("")}</select></div>
+    </div>
+    <p class="sub" id="u-help" style="margin:0"></p>
+    <p class="err" hidden></p>
+    <div class="actions"><div class="del"></div><div class="r"><button class="btn" type="button" data-x>Cancelar</button><button class="btn primary" type="submit">Guardar</button></div></div>
+  </form>`;
+  document.body.appendChild(scrim);
+  const f = scrim.querySelector("form"), err = f.querySelector(".err");
+  const close = () => scrim.remove();
+  scrim.onclick = (e) => { if (e.target === scrim) close(); };
+  f.querySelector("[data-x]").onclick = close;
+  const syncRol = () => {
+    const r = $("#u-rol").value;
+    $("#u-cel-f").hidden = r !== "lider";
+    $("#u-help").textContent = r === "lider" ? "El líder solo ve y llena su propia célula." : r === "pastor" ? "El pastor ve todas las células y sus reportes, pero no puede cambiar nada." : "El administrador puede crear células, usuarios y claves.";
+  };
+  $("#u-rol").onchange = syncRol; syncRol();
+  if (!isNew && u.usuario !== me.usuario) {
+    const del = f.querySelector(".del");
+    const b = document.createElement("button"); b.type = "button"; b.className = "btn danger"; b.textContent = "Borrar usuario";
+    b.onclick = () => { del.innerHTML = `<div class="inline-confirm"><button type="button" class="btn danger">Sí, borrar</button><button type="button" class="btn">No</button></div>`;
+      const [y, n] = del.querySelectorAll("button");
+      y.onclick = async () => { try { await store.deleteUser(u.usuario); close(); toast("Usuario borrado"); usersView(); } catch (e) { err.textContent = errMsg(e); err.hidden = false; } };
+      n.onclick = () => { del.textContent = ""; del.appendChild(b); }; };
+    del.appendChild(b);
+  }
+  setTimeout(() => $("#u-nombre").focus(), 30);
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    const body = { usuario: isNew ? normUser($("#u-user").value) : u.usuario, nombre: $("#u-nombre").value.trim(), rol: $("#u-rol").value, celula: $("#u-cel").value };
+    const clave = $("#u-pass").value;
+    const fail = (m) => { err.textContent = m; err.hidden = false; };
+    if (!body.nombre) return fail("Escribe el nombre de la persona.");
+    if (!USER_RE.test(body.usuario)) return fail("El usuario debe tener de 3 a 30 letras o números, sin espacios ni acentos.");
+    if ((isNew || clave) && clave.length < 4) return fail("La clave debe tener al menos 4 letras o números.");
+    if (body.rol === "lider" && !body.celula) return fail("Escoge la célula de este líder.");
+    if (!isNew && u.usuario === me.usuario && body.rol !== "admin") return fail("No puedes quitarte el acceso de administrador a ti mismo.");
+    try { await store.saveUser(body, clave, isNew); close(); toast(isNew ? `Usuario ${body.usuario} creado` : "Usuario guardado"); usersView(); }
+    catch (e2) { fail(errMsg(e2)); }
+  };
+}
+
+/* ---------- vista de una célula */
+function openCell(c) {
+  stopWatch();
+  state.view = "cell"; state.cell = c;
+  render();
+}
+async function render() {
+  const c = state.cell;
+  savebar.hide();
+  const tabs = readOnly() ? [["historial", "Historial"], ["asistencia", "Ver reunión"]] : [["asistencia", "Asistencia"], ["miembros", "Miembros"], ["historial", "Historial"]];
+  if (!tabs.some(([k]) => k === state.tab)) state.tab = tabs[0][0];
+  app.innerHTML = `
+    <div>${state.single ? "" : `<button class="back" id="back" type="button">‹ Células</button>`}
+      <h2 style="margin-top:6px">${esc(c.nombre)}</h2>
+      <p class="sub">${c.lider ? "Líder: " + esc(c.lider) : "Sin líder asignado"}${c.dia ? " · " + esc(c.dia) : ""}${c.hora ? " " + esc(c.hora) : ""}${me.rol === "admin" ? ` · <button class="back" id="editcell" type="button">Editar</button>` : ""}</p></div>
+    <div class="tabs" role="tablist" style="grid-template-columns:repeat(${tabs.length},1fr)">
+      ${tabs.map(([k, l]) => `<button role="tab" type="button" data-tab="${k}" aria-selected="${state.tab === k}">${l}</button>`).join("")}
+    </div>
+    <div id="pane"><div class="empty"><div class="spinner"></div></div></div>`;
+  if ($("#back")) $("#back").onclick = home;
+  if ($("#editcell")) $("#editcell").onclick = () => cellForm(c);
+  app.querySelectorAll("[data-tab]").forEach((b) => (b.onclick = () => { state.tab = b.dataset.tab; render(); }));
+  try {
+    if (state.tab === "asistencia") await (readOnly() ? paneVer() : paneAsistencia());
+    else if (state.tab === "miembros") await paneMiembros();
+    else await paneHistorial();
+  } catch (e) { $("#pane").innerHTML = `<div class="empty"><strong>No se pudo cargar</strong>${esc(errMsg(e))}</div>`; }
+}
+
+/* pastor: ver una reunión sin poder cambiarla */
+async function paneVer() {
+  const c = state.cell, pane = $("#pane");
+  const [members, m] = await Promise.all([store.members(c.id), store.meeting(c.id, state.fecha)]);
+  const head = `<div class="daterow"><label for="fecha" class="sub" style="margin:0">Reunión del</label><input type="date" id="fecha" value="${state.fecha}" max="${todayISO()}"><span class="dname">${esc(DIAS[new Date(state.fecha + "T12:00").getDay()])}</span></div>`;
+  if (!m) {
+    pane.innerHTML = `<div class="grid">${head}<div class="empty"><strong>No hay reporte de esta fecha</strong>Escoge otra fecha o revisa la pestaña “Historial”.</div></div>`;
+  } else {
+    const st = (id) => m.asistencia?.[id];
+    pane.innerHTML = `<div class="grid">${head}
+      <div class="stats"><div class="stat ok"><b>${m.presentes}</b><span>Presentes</span></div><div class="stat no"><b>${m.ausentes}</b><span>Ausentes</span></div><div class="stat"><b>${m.invitados || 0}</b><span>Invitados</span></div></div>
+      <div class="att">${members.map((p) => { const v = st(p.id); return `<div class="att-row ${v || ""}"><div class="nm">${esc(p.nombre)}</div><span class="tag" style="${v === "p" ? "background:var(--ok);color:#fff" : v === "a" ? "background:var(--no);color:#fff" : ""}">${v === "p" ? "Presente" : v === "a" ? "Ausente" : "Sin marcar"}</span></div>`; }).join("")}</div>
+      <div class="card grid">
+        ${m.tema ? `<div><div class="sub" style="margin:0">Tema de la enseñanza</div><b>${esc(m.tema)}</b></div>` : ""}
+        <div><div class="sub" style="margin:0">Peticiones y comentarios</div><div style="white-space:pre-wrap">${m.notas ? esc(m.notas) : "—"}</div></div>
+        <div><div class="sub" style="margin:0">Ofrenda</div><b>${m.ofrenda ? "$" + esc(m.ofrenda) : "—"}</b></div>
+      </div></div>`;
+  }
+  $("#fecha").onchange = (e) => { if (!e.target.value) return; state.fecha = e.target.value; render(); };
+}
+
+async function paneAsistencia() {
+  const c = state.cell, pane = $("#pane");
+  const [members, existing] = await Promise.all([store.members(c.id), store.meeting(c.id, state.fecha)]);
+  if (!members.length) {
+    pane.innerHTML = `<div class="empty"><strong>Primero agrega a los miembros</strong>Ve a la pestaña “Miembros” y agrega a las personas de tu célula. Después podrás marcar quién vino.</div>`;
+    return;
+  }
+  const att = { ...(existing?.asistencia || {}) };
+  let invitados = existing?.invitados || 0;
+  pane.innerHTML = `<div class="grid">
+    <div class="daterow"><label for="fecha" class="sub" style="margin:0">Reunión del</label><input type="date" id="fecha" value="${state.fecha}" max="${todayISO()}"><span class="dname">${esc(DIAS[new Date(state.fecha + "T12:00").getDay()])}</span>${existing ? `<span class="tag">Ya guardada</span>` : ""}</div>
+    <div class="stats"><div class="stat ok"><b id="n-p">0</b><span>Presentes</span></div><div class="stat no"><b id="n-a">0</b><span>Ausentes</span></div><div class="stat"><b id="n-s">0</b><span>Sin marcar</span></div></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" id="allp" type="button">Todos presentes</button><button class="btn small" id="clear" type="button">Borrar marcas</button></div>
+    <div class="att" id="att"></div>
+    <div class="card grid">
+      <div style="display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap"><div><b>Invitados</b><div class="sub" style="margin:0">Personas nuevas que llegaron</div></div>
+        <div class="stepper"><button type="button" id="invminus" aria-label="Menos invitados">−</button><output id="inv">${invitados}</output><button type="button" id="invplus" aria-label="Más invitados">+</button></div></div>
+      <div class="field"><label for="tema">Tema de la enseñanza</label><input id="tema" value="${esc(existing?.tema)}" placeholder="Ej. El amor de Cristo"></div>
+      <div class="field"><label for="notas">Peticiones y comentarios</label><textarea id="notas" placeholder="Peticiones de oración, quién está enfermo, etc.">${esc(existing?.notas)}</textarea></div>
+      <div class="field"><label for="ofrenda">Ofrenda ($)</label><input id="ofrenda" inputmode="decimal" value="${esc(existing?.ofrenda)}" placeholder="0.00"></div>
+    </div></div>`;
+  const box = $("#att");
+  const counts = () => {
+    const v = members.map((m) => att[m.id]);
+    const p = v.filter((x) => x === "p").length, a = v.filter((x) => x === "a").length, s = members.length - p - a;
+    $("#n-p").textContent = p; $("#n-a").textContent = a; $("#n-s").textContent = s;
+    savebar.show(`${plural(p, "presente", "presentes")} · ${plural(a, "ausente", "ausentes")}${s ? ` · faltan ${s}` : ""}`, existing ? "Guardar cambios" : "Guardar asistencia", save);
+  };
+  const row = (m) => {
+    const r = document.createElement("div");
+    const v = att[m.id];
+    r.className = "att-row" + (v ? " " + v : "");
+    r.innerHTML = `<div class="nm">${esc(m.nombre)}${m.telefono ? `<small>${esc(m.telefono)}</small>` : ""}</div>
+      <div class="seg"><button type="button" class="p" aria-pressed="${v === "p"}" aria-label="Presente: ${esc(m.nombre)}">✓<span class="lbl"> Presente</span></button><button type="button" class="a" aria-pressed="${v === "a"}" aria-label="Ausente: ${esc(m.nombre)}">✕<span class="lbl"> Ausente</span></button></div>`;
+    const [bp, ba] = r.querySelectorAll("button");
+    const set = (val) => { if (att[m.id] === val) delete att[m.id]; else att[m.id] = val; r.replaceWith(row(m)); counts(); };
+    bp.onclick = () => set("p"); ba.onclick = () => set("a");
+    return r;
+  };
+  const redraw = () => { box.textContent = ""; members.forEach((m) => box.appendChild(row(m))); counts(); };
+  redraw();
+  $("#allp").onclick = () => { members.forEach((m) => (att[m.id] = "p")); redraw(); };
+  $("#clear").onclick = () => { members.forEach((m) => delete att[m.id]); redraw(); };
+  const setInv = (n) => { invitados = Math.max(0, n); $("#inv").textContent = invitados; };
+  $("#invminus").onclick = () => setInv(invitados - 1);
+  $("#invplus").onclick = () => setInv(invitados + 1);
+  $("#fecha").onchange = (e) => { if (!e.target.value) return; state.fecha = e.target.value; render(); };
+  async function save() {
+    if (!members.some((m) => att[m.id])) { toast("Marca al menos a una persona"); return; }
+    savebar.btn.disabled = true; savebar.btn.textContent = "Guardando…";
+    const data = summarize({ fecha: state.fecha, asistencia: att, invitados, tema: $("#tema").value.trim(), notas: $("#notas").value.trim(), ofrenda: $("#ofrenda").value.trim() }, members);
+    try { await store.saveMeeting(state.cell.id, state.fecha, data); toast(`Guardado: ${plural(data.presentes, "presente", "presentes")}, ${plural(data.ausentes, "ausente", "ausentes")}`); render(); }
+    catch (e) { toast(errMsg(e)); counts(); }
+  }
+}
+
+async function paneMiembros() {
+  const c = state.cell, pane = $("#pane");
+  const members = await store.members(c.id);
+  pane.innerHTML = `<div class="grid">
+    <form class="card grid" id="addf" novalidate>
+      <b>Agregar miembro</b>
+      <div class="row2"><div class="field"><label for="m-nombre">Nombre</label><input id="m-nombre" autocomplete="off" placeholder="Nombre y apellido"></div>
+      <div class="field"><label for="m-tel">Teléfono (opcional)</label><input id="m-tel" type="tel" inputmode="tel" autocomplete="off" placeholder="(845) 000-0000"></div></div>
+      <button class="btn primary" type="submit">Agregar</button>
+    </form>
+    <p class="sub" style="margin:0">${plural(members.length, "miembro", "miembros")} en esta célula</p>
+    <div class="list" id="mlist"></div></div>`;
+  const list = $("#mlist");
+  if (!members.length) list.innerHTML = `<div class="empty"><strong>Sin miembros todavía</strong>Escribe el nombre arriba y toca “Agregar”. Repite con cada persona de tu célula.</div>`;
+  members.forEach((m) => {
+    const it = document.createElement("div"); it.className = "item";
+    it.innerHTML = `<div class="grow"><b>${esc(m.nombre)}</b>${m.telefono ? `<small>${esc(m.telefono)}</small>` : ""}</div><button class="btn small" type="button">Editar</button>`;
+    it.querySelector("button").onclick = () => {
+      it.innerHTML = `<div class="grow grid" style="gap:8px"><input class="e-n" value="${esc(m.nombre)}" aria-label="Nombre" style="padding:9px 10px;border-radius:9px;border:1px solid var(--line);background:var(--bg)"><input class="e-t" value="${esc(m.telefono)}" aria-label="Teléfono" placeholder="Teléfono" style="padding:9px 10px;border-radius:9px;border:1px solid var(--line);background:var(--bg)">
+        <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn small primary" type="button" data-s>Guardar</button><button class="btn small" type="button" data-c>Cancelar</button><button class="btn small danger" type="button" data-d>Quitar</button></div></div>`;
+      it.querySelector("[data-c]").onclick = () => render();
+      it.querySelector("[data-s]").onclick = async () => { const n = it.querySelector(".e-n").value.trim(); if (!n) return; try { await store.saveMember(c.id, { id: m.id, nombre: n, telefono: it.querySelector(".e-t").value.trim() }); toast("Guardado"); render(); } catch (e) { toast(errMsg(e)); } };
+      const d = it.querySelector("[data-d]");
+      d.onclick = () => { d.textContent = `Sí, quitar a ${m.nombre}`; d.onclick = async () => { try { await store.deleteMember(c.id, m.id); toast(m.nombre + " quitado"); render(); } catch (e) { toast(errMsg(e)); } }; };
+    };
+    list.appendChild(it);
+  });
+  $("#addf").onsubmit = async (e) => {
+    e.preventDefault();
+    const n = $("#m-nombre").value.trim(); if (!n) { $("#m-nombre").focus(); return; }
+    try { await store.saveMember(c.id, { nombre: n, telefono: $("#m-tel").value.trim(), creado: new Date().toISOString() }); toast(n + " agregado"); render(); setTimeout(() => $("#m-nombre")?.focus(), 50); }
+    catch (e2) { toast(errMsg(e2)); }
+  };
+}
+
+async function paneHistorial() {
+  const c = state.cell, pane = $("#pane");
+  const [ms, members] = await Promise.all([store.meetings(c.id, 12), store.members(c.id)]);
+  if (!ms.length) { pane.innerHTML = `<div class="empty"><strong>Todavía no hay reuniones guardadas</strong>${readOnly() ? "Cuando el líder pase asistencia, aparecerá aquí." : "Pasa asistencia en la pestaña “Asistencia” y aparecerá aquí."}</div>`; return; }
+  const avg = Math.round(ms.reduce((s, m) => s + (m.total ? m.presentes / m.total : 0), 0) / ms.length * 100);
+  const last8 = ms.slice(0, 8);
+  const per = members.map((m) => {
+    const marked = last8.filter((x) => x.asistencia?.[m.id]);
+    const p = marked.filter((x) => x.asistencia[m.id] === "p").length;
+    return { ...m, p, n: marked.length, pct: marked.length ? Math.round((p / marked.length) * 100) : null };
+  }).sort((a, b) => (a.pct ?? 101) - (b.pct ?? 101));
+  pane.innerHTML = `<div class="grid">
+    <div class="stats"><div class="stat"><b>${ms.length}</b><span>Reuniones</span></div><div class="stat ok"><b>${avg}%</b><span>Asistencia</span></div><div class="stat"><b>${ms.reduce((s, m) => s + (m.invitados || 0), 0)}</b><span>Invitados</span></div></div>
+    <b>Reuniones</b><div class="list" id="hl"></div>
+    <b>Asistencia por persona</b><p class="sub" style="margin:-8px 0 0">${last8.length === 1 ? "Última reunión" : "Últimas " + last8.length + " reuniones"}. Los de menor asistencia salen primero, para saber a quién visitar o llamar.</p>
+    <div class="list" id="pl"></div></div>`;
+  ms.forEach((m) => {
+    const it = document.createElement("button"); it.type = "button"; it.className = "item"; it.style.cursor = "pointer"; it.style.textAlign = "left";
+    const pct = m.total ? Math.round(m.presentes / m.total * 100) : 0;
+    it.innerHTML = `<div class="grow"><b>${esc(cap(fmtFecha(m.fecha)))}</b><small>${plural(m.presentes, "presente", "presentes")} · ${plural(m.ausentes, "ausente", "ausentes")} · ${plural(m.invitados || 0, "invitado", "invitados")}${m.tema ? " · " + esc(m.tema) : ""}</small></div><span class="pct ${pct >= 70 ? "good" : pct < 50 ? "low" : ""}">${pct}%</span>`;
+    it.onclick = () => { state.fecha = m.fecha; state.tab = "asistencia"; render(); };
+    $("#hl").appendChild(it);
+  });
+  per.forEach((m) => {
+    const it = document.createElement("div"); it.className = "item";
+    it.innerHTML = `<div class="grow"><b>${esc(m.nombre)}</b><small>${m.n ? `Vino ${m.p} de ${m.n}` : "Sin registros"}</small></div>${m.pct !== null ? `<span class="pct ${m.pct >= 70 ? "good" : m.pct < 50 ? "low" : ""}">${m.pct}%</span>` : ""}`;
+    $("#pl").appendChild(it);
+  });
+}
+
+boot();
+</script>
+</body>
+</html>
