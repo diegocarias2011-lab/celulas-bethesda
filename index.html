@@ -197,6 +197,7 @@ async function hashOf(usuario, clave) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("bethesda|" + usuario + "|" + clave));
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
+const money = (n) => "$" + (Number(n) || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 function summarize(m, members) {
   const ids = new Set(members.map((x) => x.id));
   const vals = Object.entries(m.asistencia || {}).filter(([k]) => ids.has(k)).map(([, v]) => v);
@@ -468,7 +469,7 @@ async function home() {
     b.type = "button"; b.className = "card cell-card";
     b.innerHTML = `<h3>${esc(c.nombre)}</h3>
       <div class="meta">${c.lider ? "Líder: " + esc(c.lider) : "Sin líder asignado"}${c.dia ? " · " + esc(c.dia) : ""}${c.hora ? " " + esc(c.hora) : ""}</div>
-      ${m ? `<div class="bar" aria-hidden="true"><i style="width:${pct}%"></i></div><div class="meta"><b style="color:var(--fg)">${m.presentes} de ${m.total}</b> presentes · ${plural(m.invitados || 0, "invitado", "invitados")} · ${esc(fmtFecha(m.fecha, false))}</div>` : `<div class="meta">Sin reuniones registradas</div>`}`;
+      ${m ? `<div class="bar" aria-hidden="true"><i style="width:${pct}%"></i></div><div class="meta"><b style="color:var(--fg)">${m.presentes} de ${m.total}</b> presentes · ${plural(m.invitados || 0, "invitado", "invitados")} · ofrenda ${money(m.ofrenda)} · ${esc(fmtFecha(m.fecha, false))}</div>` : `<div class="meta">Sin reuniones registradas</div>`}`;
     b.onclick = () => openCell(c);
     box.appendChild(b);
   });
@@ -485,13 +486,13 @@ async function resumen(cells) {
     const start = new Date(); start.setDate(start.getDate() - 6);
     const desde = localISO(start), hoy = todayISO();
     const data = await Promise.all(cells.map(async (c) => ({ c, ms: await store.meetings(c.id, 3), mem: await store.members(c.id) })));
-    let P = 0, T = 0, I = 0, rep = 0;
+    let P = 0, T = 0, I = 0, O = 0, rep = 0;
     const lines = [], faltas = [], pet = [];
     data.forEach(({ c, ms, mem }) => {
       const m = ms.find((x) => x.fecha >= desde && x.fecha <= hoy);
       if (m) {
-        rep++; P += m.presentes; T += m.total; I += m.invitados || 0;
-        lines.push(`✅ ${c.nombre} – ${m.presentes}/${m.total} · ${plural(m.invitados || 0, "invitado", "invitados")}`);
+        rep++; P += m.presentes; T += m.total; I += m.invitados || 0; O += Number(m.ofrenda) || 0;
+        lines.push(`✅ ${c.nombre} – ${m.presentes}/${m.total} · ${plural(m.invitados || 0, "invitado", "invitados")} · ${money(m.ofrenda)}`);
         if (m.notas) pet.push(`• ${m.notas.replace(/\s*\n\s*/g, "; ")} (${c.nombre})`);
       } else lines.push(`⏳ ${c.nombre} – no ha reportado`);
       if (ms.length >= 3) mem.forEach((p) => { if (ms.every((x) => x.asistencia?.[p.id] === "a")) faltas.push(`• ${p.nombre} (${c.nombre})`); });
@@ -499,7 +500,7 @@ async function resumen(cells) {
     const pct = T ? Math.round((P / T) * 100) : 0;
     const txt = [
       "📊 *RESUMEN DE CÉLULAS*", "Iglesia Cristiana Bethesda", `Semana del ${fmtFecha(desde, false)} al ${fmtFecha(hoy, false)}`, "",
-      `👥 *Total presentes:* ${P} de ${T} (${pct}%)`, `🙋 *Invitados nuevos:* ${I}`, `📋 *Reportaron:* ${rep} de ${cells.length} células`, "",
+      `👥 *Total presentes:* ${P} de ${T} (${pct}%)`, `🙋 *Invitados nuevos:* ${I}`, `💵 *Ofrendas:* ${money(O)}`, `📋 *Reportaron:* ${rep} de ${cells.length} células`, "",
       "*Por célula:*", ...lines,
       ...(faltas.length ? ["", "⚠️ *Faltaron 3 veces seguidas:*", ...faltas] : []),
       ...(pet.length ? ["", "🙏 *Peticiones de oración:*", ...pet] : []),
@@ -677,7 +678,7 @@ async function paneVer() {
   } else {
     const st = (id) => m.asistencia?.[id];
     pane.innerHTML = `<div class="grid">${head}
-      <div class="stats"><div class="stat ok"><b>${m.presentes}</b><span>Presentes</span></div><div class="stat no"><b>${m.ausentes}</b><span>Ausentes</span></div><div class="stat"><b>${m.invitados || 0}</b><span>Invitados</span></div></div>
+      <div class="stats"><div class="stat ok"><b>${m.presentes}</b><span>Presentes</span></div><div class="stat no"><b>${m.ausentes}</b><span>Ausentes</span></div><div class="stat"><b>${m.invitados || 0}</b><span>Invitados</span></div><div class="stat"><b>${money(m.ofrenda)}</b><span>Ofrenda</span></div></div>
       <div class="att">${members.map((p) => { const v = st(p.id); return `<div class="att-row ${v || ""}"><div class="nm">${esc(p.nombre)}</div><span class="tag" style="${v === "p" ? "background:var(--ok);color:#fff" : v === "a" ? "background:var(--no);color:#fff" : ""}">${v === "p" ? "Presente" : v === "a" ? "Ausente" : "Sin marcar"}</span></div>`; }).join("")}</div>
       <div class="card grid">
         ${m.tema ? `<div><div class="sub" style="margin:0">Tema de la enseñanza</div><b>${esc(m.tema)}</b></div>` : ""}
@@ -707,6 +708,7 @@ async function paneAsistencia() {
     <div class="card grid">
       <div style="display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap"><div><b>Invitados</b><div class="sub" style="margin:0">Personas nuevas que llegaron</div></div>
         <div class="stepper"><button type="button" id="invminus" aria-label="Menos invitados">−</button><output id="inv">${invitados}</output><button type="button" id="invplus" aria-label="Más invitados">+</button></div></div>
+      <div class="field"><label for="ofrenda">Ofrenda (monto en dólares)</label><div style="display:flex;align-items:center;gap:8px"><b style="font-size:1.1rem">$</b><input id="ofrenda" type="number" inputmode="decimal" min="0" step="0.01" value="${prev && prev.ofrenda != null ? prev.ofrenda : ""}" placeholder="0.00" style="flex:1"></div></div>
       <div class="field"><label for="tema">Tema de la enseñanza</label><input id="tema" value="${esc(prev?.tema)}" placeholder="Ej. El amor de Cristo"></div>
       <div class="field"><label for="notas">Peticiones y comentarios</label><textarea id="notas" placeholder="Peticiones de oración, quién está enfermo, etc.">${esc(prev?.notas)}</textarea></div>
     </div></div>`;
@@ -739,8 +741,11 @@ async function paneAsistencia() {
   if ($("#loadsaved")) $("#loadsaved").onclick = () => { state.loadSaved = true; render(); };
   async function save() {
     if (!members.some((m) => att[m.id])) { toast("Marca al menos a una persona"); return; }
+    const ofRaw = $("#ofrenda").value.trim().replace(",", ".");
+    const ofrenda = ofRaw === "" ? 0 : Math.round(Number(ofRaw) * 100) / 100;
+    if (!isFinite(ofrenda) || ofrenda < 0) { toast("Revisa el monto de la ofrenda"); $("#ofrenda").focus(); return; }
     savebar.btn.disabled = true; savebar.btn.textContent = "Guardando…";
-    const data = summarize({ fecha: state.fecha, asistencia: att, invitados, tema: $("#tema").value.trim(), notas: $("#notas").value.trim() }, members);
+    const data = summarize({ fecha: state.fecha, asistencia: att, invitados, ofrenda, tema: $("#tema").value.trim(), notas: $("#notas").value.trim() }, members);
     try { await store.saveMeeting(state.cell.id, state.fecha, data); state.loadSaved = false; toast(`Guardado: ${plural(data.presentes, "presente", "presentes")}, ${plural(data.ausentes, "ausente", "ausentes")}`); render(); }
     catch (e) { toast(errMsg(e)); counts(); }
   }
@@ -800,7 +805,7 @@ async function paneHistorial() {
   ms.forEach((m) => {
     const it = document.createElement("button"); it.type = "button"; it.className = "item"; it.style.cursor = "pointer"; it.style.textAlign = "left";
     const pct = m.total ? Math.round(m.presentes / m.total * 100) : 0;
-    it.innerHTML = `<div class="grow"><b>${esc(cap(fmtFecha(m.fecha)))}</b><small>${plural(m.presentes, "presente", "presentes")} · ${plural(m.ausentes, "ausente", "ausentes")} · ${plural(m.invitados || 0, "invitado", "invitados")}${m.tema ? " · " + esc(m.tema) : ""}</small></div><span class="pct ${pct >= 70 ? "good" : pct < 50 ? "low" : ""}">${pct}%</span>`;
+    it.innerHTML = `<div class="grow"><b>${esc(cap(fmtFecha(m.fecha)))}</b><small>${plural(m.presentes, "presente", "presentes")} · ${plural(m.ausentes, "ausente", "ausentes")} · ${plural(m.invitados || 0, "invitado", "invitados")} · ofrenda ${money(m.ofrenda)}${m.tema ? " · " + esc(m.tema) : ""}</small></div><span class="pct ${pct >= 70 ? "good" : pct < 50 ? "low" : ""}">${pct}%</span>`;
     it.onclick = () => { state.fecha = m.fecha; state.loadSaved = true; state.tab = "asistencia"; render(); };
     $("#hl").appendChild(it);
   });
