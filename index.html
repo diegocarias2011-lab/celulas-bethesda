@@ -485,12 +485,12 @@ async function resumen(cells) {
     const start = new Date(); start.setDate(start.getDate() - 6);
     const desde = localISO(start), hoy = todayISO();
     const data = await Promise.all(cells.map(async (c) => ({ c, ms: await store.meetings(c.id, 3), mem: await store.members(c.id) })));
-    let P = 0, T = 0, I = 0, O = 0, rep = 0;
+    let P = 0, T = 0, I = 0, rep = 0;
     const lines = [], faltas = [], pet = [];
     data.forEach(({ c, ms, mem }) => {
       const m = ms.find((x) => x.fecha >= desde && x.fecha <= hoy);
       if (m) {
-        rep++; P += m.presentes; T += m.total; I += m.invitados || 0; O += parseFloat(String(m.ofrenda || "0").replace(/[^0-9.]/g, "")) || 0;
+        rep++; P += m.presentes; T += m.total; I += m.invitados || 0;
         lines.push(`✅ ${c.nombre} – ${m.presentes}/${m.total} · ${plural(m.invitados || 0, "invitado", "invitados")}`);
         if (m.notas) pet.push(`• ${m.notas.replace(/\s*\n\s*/g, "; ")} (${c.nombre})`);
       } else lines.push(`⏳ ${c.nombre} – no ha reportado`);
@@ -499,7 +499,7 @@ async function resumen(cells) {
     const pct = T ? Math.round((P / T) * 100) : 0;
     const txt = [
       "📊 *RESUMEN DE CÉLULAS*", "Iglesia Cristiana Bethesda", `Semana del ${fmtFecha(desde, false)} al ${fmtFecha(hoy, false)}`, "",
-      `👥 *Total presentes:* ${P} de ${T} (${pct}%)`, `🙋 *Invitados nuevos:* ${I}`, `💵 *Ofrendas:* $${O.toFixed(2)}`, `📋 *Reportaron:* ${rep} de ${cells.length} células`, "",
+      `👥 *Total presentes:* ${P} de ${T} (${pct}%)`, `🙋 *Invitados nuevos:* ${I}`, `📋 *Reportaron:* ${rep} de ${cells.length} células`, "",
       "*Por célula:*", ...lines,
       ...(faltas.length ? ["", "⚠️ *Faltaron 3 veces seguidas:*", ...faltas] : []),
       ...(pet.length ? ["", "🙏 *Peticiones de oración:*", ...pet] : []),
@@ -682,7 +682,6 @@ async function paneVer() {
       <div class="card grid">
         ${m.tema ? `<div><div class="sub" style="margin:0">Tema de la enseñanza</div><b>${esc(m.tema)}</b></div>` : ""}
         <div><div class="sub" style="margin:0">Peticiones y comentarios</div><div style="white-space:pre-wrap">${m.notas ? esc(m.notas) : "—"}</div></div>
-        <div><div class="sub" style="margin:0">Ofrenda</div><b>${m.ofrenda ? "$" + esc(m.ofrenda) : "—"}</b></div>
       </div></div>`;
   }
   $("#fecha").onchange = (e) => { if (!e.target.value) return; state.fecha = e.target.value; render(); };
@@ -710,7 +709,6 @@ async function paneAsistencia() {
         <div class="stepper"><button type="button" id="invminus" aria-label="Menos invitados">−</button><output id="inv">${invitados}</output><button type="button" id="invplus" aria-label="Más invitados">+</button></div></div>
       <div class="field"><label for="tema">Tema de la enseñanza</label><input id="tema" value="${esc(prev?.tema)}" placeholder="Ej. El amor de Cristo"></div>
       <div class="field"><label for="notas">Peticiones y comentarios</label><textarea id="notas" placeholder="Peticiones de oración, quién está enfermo, etc.">${esc(prev?.notas)}</textarea></div>
-      <div class="field"><label for="ofrenda">Ofrenda ($)</label><input id="ofrenda" inputmode="decimal" value="${esc(prev?.ofrenda)}" placeholder="0.00"></div>
     </div></div>`;
   const box = $("#att");
   const counts = () => {
@@ -742,7 +740,7 @@ async function paneAsistencia() {
   async function save() {
     if (!members.some((m) => att[m.id])) { toast("Marca al menos a una persona"); return; }
     savebar.btn.disabled = true; savebar.btn.textContent = "Guardando…";
-    const data = summarize({ fecha: state.fecha, asistencia: att, invitados, tema: $("#tema").value.trim(), notas: $("#notas").value.trim(), ofrenda: $("#ofrenda").value.trim() }, members);
+    const data = summarize({ fecha: state.fecha, asistencia: att, invitados, tema: $("#tema").value.trim(), notas: $("#notas").value.trim() }, members);
     try { await store.saveMeeting(state.cell.id, state.fecha, data); state.loadSaved = false; toast(`Guardado: ${plural(data.presentes, "presente", "presentes")}, ${plural(data.ausentes, "ausente", "ausentes")}`); render(); }
     catch (e) { toast(errMsg(e)); counts(); }
   }
