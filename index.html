@@ -252,6 +252,7 @@ function demoStore() {
     async deleteMember(cid, id) { s.members[cid] = (s.members[cid] || []).filter((m) => m.id !== id); save(s); },
     async meeting(cid, f) { return clone((s.meetings[cid] || {})[f] || null); },
     async saveMeeting(cid, f, data) { (s.meetings[cid] ||= {})[f] = data; save(s); },
+    async deleteMeeting(cid, f) { if (s.meetings[cid]) delete s.meetings[cid][f]; save(s); },
     async meetings(cid, n = 30) { return Object.values(s.meetings[cid] || {}).sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, n).map(clone); },
     watch(cells, cb) { const h = (e) => { if (e.key === KEY) { s = load() || s; cb(); } }; addEventListener("storage", h); return () => removeEventListener("storage", h); },
   };
@@ -332,6 +333,7 @@ async function firebaseStore(cfg) {
     async deleteMember(cid, id) { await F.deleteDoc(D("celulas", cid, "miembros", id)); },
     async meeting(cid, f) { const d = await F.getDoc(D("celulas", cid, "reuniones", f)); return d.exists() ? d.data() : null; },
     async saveMeeting(cid, f, data) { await F.setDoc(D("celulas", cid, "reuniones", f), data); },
+    async deleteMeeting(cid, f) { await F.deleteDoc(D("celulas", cid, "reuniones", f)); },
     async meetings(cid, n = 30) { const sn = await F.getDocs(F.query(F.collection(db, "celulas", cid, "reuniones"), F.orderBy("fecha", "desc"), F.limit(n))); return sn.docs.map((d) => d.data()); },
     watch(cells, cb) {
       const on = (q) => { let first = true; return F.onSnapshot(q, () => { if (first) { first = false; return; } cb(); }, () => {}); };
@@ -803,10 +805,15 @@ async function paneHistorial() {
     <b>Asistencia por persona</b><p class="sub" style="margin:-8px 0 0">${last8.length === 1 ? "Última reunión" : "Últimas " + last8.length + " reuniones"}. Los de menor asistencia salen primero, para saber a quién visitar o llamar.</p>
     <div class="list" id="pl"></div></div>`;
   ms.forEach((m) => {
-    const it = document.createElement("button"); it.type = "button"; it.className = "item"; it.style.cursor = "pointer"; it.style.textAlign = "left";
+    const it = document.createElement("div"); it.className = "item";
     const pct = m.total ? Math.round(m.presentes / m.total * 100) : 0;
-    it.innerHTML = `<div class="grow"><b>${esc(cap(fmtFecha(m.fecha)))}</b><small>${plural(m.presentes, "presente", "presentes")} · ${plural(m.ausentes, "ausente", "ausentes")} · ${plural(m.invitados || 0, "invitado", "invitados")} · ofrenda ${money(m.ofrenda)}${m.tema ? " · " + esc(m.tema) : ""}</small></div><span class="pct ${pct >= 70 ? "good" : pct < 50 ? "low" : ""}">${pct}%</span>`;
-    it.onclick = () => { state.fecha = m.fecha; state.loadSaved = true; state.tab = "asistencia"; render(); };
+    it.innerHTML = `<button type="button" class="grow open" style="all:unset;flex:1;min-width:0;cursor:pointer"><b>${esc(cap(fmtFecha(m.fecha)))}</b><small style="display:block">${plural(m.presentes, "presente", "presentes")} · ${plural(m.ausentes, "ausente", "ausentes")} · ${plural(m.invitados || 0, "invitado", "invitados")} · ofrenda ${money(m.ofrenda)}${m.tema ? " · " + esc(m.tema) : ""}</small></button><span class="pct ${pct >= 70 ? "good" : pct < 50 ? "low" : ""}">${pct}%</span>${me.rol === "admin" ? `<button type="button" class="btn small del" style="color:var(--no)">Borrar</button>` : ""}`;
+    it.querySelector(".open").onclick = () => { state.fecha = m.fecha; state.loadSaved = true; state.tab = "asistencia"; render(); };
+    const del = it.querySelector(".del");
+    if (del) del.onclick = () => {
+      del.textContent = "¿Seguro? Borrar"; del.style.background = "var(--no)"; del.style.color = "#fff";
+      del.onclick = async () => { try { await store.deleteMeeting(state.cell.id, m.fecha); toast("Reunión borrada"); render(); } catch (e) { toast(errMsg(e)); } };
+    };
     $("#hl").appendChild(it);
   });
   per.forEach((m) => {
