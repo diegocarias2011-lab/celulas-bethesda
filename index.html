@@ -140,6 +140,7 @@ h2 { margin: 0; font-family: var(--f-display); font-size: 1.35rem; text-wrap: ba
 @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.5s; } }
 .hint { background: var(--chip); border-radius: 10px; padding: 10px 12px; font-size: .85rem; color: var(--fg); width: 100%; }
 .btn.wa { background: #1f9d55; color: #fff; border-color: transparent; }
+a.btn { text-decoration: none; } a.btn:not(.wa) { color: var(--fg); }
 .top .who b { font-weight: 700; }
 .top .who { max-width: 42%; }
 @media (max-width: 480px) { .top p { display: none; } .top h1 { font-size: 1.1rem; } }
@@ -650,7 +651,7 @@ function openCell(c) {
 async function render() {
   const c = state.cell;
   savebar.hide();
-  const tabs = readOnly() ? [["historial", "Historial"], ["asistencia", "Ver reunión"]] : [["asistencia", "Asistencia"], ["miembros", "Miembros"], ["historial", "Historial"]];
+  const tabs = readOnly() ? [["historial", "Historial"], ["asistencia", "Ver reunión"], ["miembros", "Personas"]] : [["asistencia", "Asistencia"], ["miembros", "Miembros"], ["historial", "Historial"]];
   if (!tabs.some(([k]) => k === state.tab)) state.tab = tabs[0][0];
   app.innerHTML = `
     <div>${state.single ? "" : `<button class="back" id="back" type="button">‹ Células</button>`}
@@ -665,7 +666,7 @@ async function render() {
   app.querySelectorAll("[data-tab]").forEach((b) => (b.onclick = () => { state.tab = b.dataset.tab; render(); }));
   try {
     if (state.tab === "asistencia") await (readOnly() ? paneVer() : paneAsistencia());
-    else if (state.tab === "miembros") await paneMiembros();
+    else if (state.tab === "miembros") await (readOnly() ? paneVerMiembros() : paneMiembros());
     else await paneHistorial();
   } catch (e) { $("#pane").innerHTML = `<div class="empty"><strong>No se pudo cargar</strong>${esc(errMsg(e))}</div>`; }
 }
@@ -751,6 +752,21 @@ async function paneAsistencia() {
     try { await store.saveMeeting(state.cell.id, state.fecha, data); state.loadSaved = false; toast(`Guardado: ${plural(data.presentes, "presente", "presentes")}, ${plural(data.ausentes, "ausente", "ausentes")}`); render(); }
     catch (e) { toast(errMsg(e)); counts(); }
   }
+}
+
+/* pastor: ver las personas y sus teléfonos */
+async function paneVerMiembros() {
+  const c = state.cell, pane = $("#pane");
+  const members = await store.members(c.id);
+  if (!members.length) { pane.innerHTML = `<div class="empty"><strong>Esta célula no tiene personas todavía</strong>Cuando el líder agregue a sus miembros, aparecerán aquí con su teléfono.</div>`; return; }
+  const digits = (t) => String(t || "").replace(/\D/g, "");
+  pane.innerHTML = `<div class="grid"><p class="sub" style="margin:0">${plural(members.length, "persona", "personas")} en esta célula</p><div class="list" id="mlist"></div></div>`;
+  members.forEach((m) => {
+    const d = digits(m.telefono), wa = d.length === 10 ? "1" + d : d;
+    const it = document.createElement("div"); it.className = "item";
+    it.innerHTML = `<div class="grow"><b>${esc(m.nombre)}</b><small>${m.telefono ? esc(m.telefono) : "Sin teléfono"}</small></div>${d ? `<a class="btn small" href="tel:${esc(d)}" aria-label="Llamar a ${esc(m.nombre)}">Llamar</a><a class="btn small wa" href="https://wa.me/${esc(wa)}" target="_blank" rel="noopener" aria-label="WhatsApp a ${esc(m.nombre)}">WhatsApp</a>` : ""}`;
+    $("#mlist").appendChild(it);
+  });
 }
 
 async function paneMiembros() {
