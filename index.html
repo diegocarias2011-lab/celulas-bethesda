@@ -469,7 +469,7 @@ async function home() {
       <p class="sub" style="margin-top:-6px">Suma de la última reunión de cada célula.</p>
       <button class="btn wa" id="wa" type="button">Enviar resumen por WhatsApp</button>` : ""}
     <div class="cells" id="cells"></div>
-    ${me.rol === "admin" ? `<div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn gold" id="newcell" type="button">+ Nueva célula</button><button class="btn" id="users" type="button">Usuarios y claves</button></div>` : ""}`;
+    ${me.rol === "admin" ? `<div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn gold" id="newcell" type="button">+ Nueva célula</button><button class="btn" id="users" type="button">Usuarios y claves</button><button class="btn primary" id="respaldo" type="button">Descargar respaldo (PDF)</button></div>` : ""}`;
   const box = $("#cells");
   if (!cells.length) box.innerHTML = me.rol === "admin"
     ? `<div class="empty"><strong>Todavía no hay células</strong>Crea la primera con el botón “Nueva célula”. Después crea el usuario y la clave de su líder en “Usuarios y claves”.</div>`
@@ -486,9 +486,60 @@ async function home() {
     box.appendChild(b);
   });
   if ($("#wa")) $("#wa").onclick = () => resumen(cells);
-  if (me.rol === "admin") { $("#newcell").onclick = () => cellForm(null); $("#users").onclick = usersView; }
+  if (me.rol === "admin") { $("#newcell").onclick = () => cellForm(null); $("#users").onclick = usersView; $("#respaldo").onclick = () => descargarRespaldo(cells); }
   let t;
   unwatch = store.watch(cells, () => { clearTimeout(t); t = setTimeout(() => { if (state.view === "home") { home(); toast("Nuevo reporte de un líder"); } }, 700); });
+}
+
+/* ---------- respaldo en PDF de todas las células (solo el administrador) */
+function reporteCelulas(datos) {
+  const e = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const fd = (f) => f.slice(8, 10) + "/" + f.slice(5, 7) + "/" + f.slice(0, 4);
+  const hoy = new Date().toLocaleDateString("es-US", { day: "numeric", month: "long", year: "numeric", hour: "numeric", minute: "2-digit" });
+  const sum = (ms, k) => ms.reduce((a, m) => a + (Number(m[k]) || 0), 0);
+  const resumen = `<section><h2>Resumen de todas las células</h2><table><thead><tr><th>Célula</th><th>Líder</th><th class="c">Miembros</th><th class="c">Reuniones</th><th class="c">Asistencia promedio</th><th class="c">Invitados</th><th class="c">Ofrendas</th></tr></thead><tbody>${datos.map(({ c, ms, mem }) => `<tr><td>${e(c.nombre)}</td><td>${e(c.lider) || "—"}</td><td class="c">${mem.length}</td><td class="c">${ms.length}</td><td class="c">${ms.length ? Math.round(ms.reduce((a, m) => a + (m.total ? m.presentes / m.total : 0), 0) / ms.length * 100) + "%" : "—"}</td><td class="c">${sum(ms, "invitados")}</td><td class="c">${money(sum(ms, "ofrenda"))}</td></tr>`).join("")}<tr class="tot"><td colspan="3"><b>Total</b></td><td class="c"><b>${datos.reduce((a, d) => a + d.ms.length, 0)}</b></td><td></td><td class="c"><b>${datos.reduce((a, d) => a + sum(d.ms, "invitados"), 0)}</b></td><td class="c"><b>${money(datos.reduce((a, d) => a + sum(d.ms, "ofrenda"), 0))}</b></td></tr></tbody></table></section>`;
+  const secc = datos.map(({ c, ms, mem }) => {
+    const head = `<h2>${e(c.nombre)}</h2><p class="muted">${c.lider ? "Líder: " + e(c.lider) : "Sin líder asignado"}${c.dia ? " · " + e(c.dia) : ""}${c.hora ? " " + e(c.hora) : ""}${c.direccion ? " · " + e(c.direccion) : ""} · ${mem.length} miembros</p>`;
+    if (!ms.length) return `<section>${head}<p class="muted">Todavía no hay reuniones guardadas.</p></section>`;
+    const reun = `<table><thead><tr><th>Fecha</th><th class="c">Presentes</th><th class="c">Ausentes</th><th class="c">Invitados</th><th class="c">Ofrenda</th><th>Tema</th><th>Peticiones y comentarios</th></tr></thead><tbody>${ms.map((m) => `<tr><td>${fd(m.fecha)}</td><td class="c">${m.presentes || 0} de ${m.total || 0}</td><td class="c">${m.ausentes || 0}</td><td class="c">${m.invitados || 0}</td><td class="c">${money(m.ofrenda)}</td><td>${e(m.tema) || "—"}</td><td>${e(m.notas) || "—"}</td></tr>`).join("")}<tr class="tot"><td><b>Total</b></td><td></td><td></td><td class="c"><b>${sum(ms, "invitados")}</b></td><td class="c"><b>${money(sum(ms, "ofrenda"))}</b></td><td></td><td></td></tr></tbody></table>`;
+    const chunks = []; for (let i = 0; i < ms.length; i += 10) chunks.push(ms.slice(i, i + 10));
+    const matriz = mem.length ? chunks.map((ch, ci) => `<table><thead><tr><th>Miembro</th><th>Teléfono</th>${ch.map((m) => `<th class="c">${fd(m.fecha).slice(0, 5)}</th>`).join("")}${ci === chunks.length - 1 ? `<th class="c">Vino</th><th class="c">%</th>` : ""}</tr></thead><tbody>${mem.map((p) => {
+      const all = ms.map((m) => m.asistencia?.[p.id]); const vino = all.filter((v) => v === "p").length, de = all.filter(Boolean).length;
+      return `<tr><td>${e(p.nombre)}</td><td>${e(p.telefono) || "—"}</td>${ch.map((m) => { const v = m.asistencia?.[p.id]; return `<td class="c ${v === "p" ? "p" : v === "a" ? "a" : ""}">${v === "p" ? "Presente" : v === "a" ? "Ausente" : "—"}</td>`; }).join("")}${ci === chunks.length - 1 ? `<td class="c"><b>${vino} de ${de}</b></td><td class="c"><b>${de ? Math.round(vino / de * 100) : 0}%</b></td>` : ""}</tr>`;
+    }).join("")}</tbody></table>`).join("") : `<p class="muted">Sin miembros.</p>`;
+    return `<section>${head}<h3>Reuniones</h3>${reun}<h3>Asistencia por miembro</h3>${matriz}</section>`;
+  }).join("");
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Respaldo Células Bethesda ${todayISO()}</title><style>
+@page { size: letter landscape; margin: 12mm; }
+* { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; } body { font: 12px/1.4 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #10203f; margin: 0; padding: 18px; background: #fff; }
+header { display: flex; align-items: center; gap: 14px; border-bottom: 3px solid #e2b248; padding-bottom: 10px; margin-bottom: 6px; }
+header img { width: 56px; height: 56px; border-radius: 50%; } h1 { margin: 0; font-size: 20px; color: #0a2a6e; } .muted { color: #5a6a88; margin: 2px 0 8px; }
+h2 { color: #0a2a6e; font-size: 17px; margin: 18px 0 2px; } h3 { font-size: 13px; margin: 12px 0 6px; color: #1c4aa8; }
+table { width: 100%; border-collapse: collapse; margin-bottom: 10px; } tr { page-break-inside: avoid; }
+th { background: #0a2a6e; color: #fff; font-weight: 700; text-align: left; padding: 5px 6px; font-size: 11px; } td { padding: 4px 6px; border-bottom: 1px solid #dfe6f2; vertical-align: top; }
+tbody tr:nth-child(even) td { background: #f3f7fd; } tr.tot td { background: #fff3d6 !important; border-top: 2px solid #e2b248; } .c { text-align: center; } td.p { color: #137a3f; font-weight: 700; } td.a { color: #c0392b; font-weight: 700; }
+section + section { page-break-before: always; } .bar { position: sticky; top: 0; background: #fff8e6; border: 1px solid #e2b248; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.bar button { background: #0a2a6e; color: #fff; border: 0; border-radius: 8px; padding: 9px 14px; font-weight: 700; font-size: 14px; cursor: pointer; }
+@media print { .bar { display: none; } body { padding: 0; } }
+</style></head><body>
+<div class="bar"><button onclick="print()">Guardar como PDF</button><span>En la ventana que se abre, escoge <b>“Guardar como PDF”</b> como impresora y guárdalo en tu computadora.</span></div>
+<header><img src="${document.querySelector("img.logo")?.src || ""}" alt=""><div><h1>Respaldo de las Células · Iglesia Cristiana Bethesda</h1><div class="muted">Generado el ${e(hoy)} · ${datos.length} ${datos.length === 1 ? "célula" : "células"}</div></div></header>
+${resumen}${secc}
+<script>setTimeout(function(){ try { print(); } catch (e) {} }, 600);<\/script></body></html>`;
+}
+async function descargarRespaldo(cells) {
+  const w = window.open("", "_blank");
+  if (!w) { toast("Permite las ventanas emergentes para descargar el respaldo"); return; }
+  w.document.write('<p style="font:16px sans-serif;padding:24px">Preparando el respaldo…</p>');
+  const btn = $("#respaldo"); btn.disabled = true; btn.textContent = "Preparando…";
+  try {
+    const datos = await Promise.all(cells.map(async (c) => {
+      const [ms, mem] = await Promise.all([store.meetings(c.id, 1000), store.members(c.id)]);
+      return { c, ms: ms.sort((a, b) => a.fecha.localeCompare(b.fecha)), mem };
+    }));
+    w.document.open(); w.document.write(reporteCelulas(datos)); w.document.close();
+  } catch (e) { w.close(); toast(errMsg(e)); }
+  btn.disabled = false; btn.textContent = "Descargar respaldo (PDF)";
 }
 
 /* ---------- resumen para WhatsApp */
