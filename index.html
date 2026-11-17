@@ -186,6 +186,15 @@ const localISO = (d) => { d = new Date(d); d.setMinutes(d.getMinutes() - d.getTi
 const todayISO = () => localISO(new Date());
 const MESES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 const DIAS = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+// Fecha de la última reunión de la célula (por defecto el viernes): así cada semana empieza un conteo nuevo
+function lastMeetingDay(dia) {
+  const norm = (x) => String(x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  let w = DIAS.findIndex((d) => norm(d) === norm(dia));
+  if (w < 0) w = 5;
+  const d = new Date(); d.setHours(12, 0, 0, 0);
+  d.setDate(d.getDate() - ((d.getDay() - w + 7) % 7));
+  return localISO(d);
+}
 const fmtFecha = (iso, withDay = true) => { const [y, m, d] = iso.split("-").map(Number); const dt = new Date(y, m - 1, d); return (withDay ? DIAS[dt.getDay()] + " " : "") + d + " de " + MESES[m - 1] + (y !== new Date().getFullYear() ? " de " + y : ""); };
 const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 const plural = (n, a, b) => n + " " + (n === 1 ? a : b);
@@ -644,7 +653,7 @@ function userForm(u, cells) {
 /* ---------- vista de una célula */
 function openCell(c) {
   stopWatch();
-  state.fecha = todayISO(); state.loadSaved = false;
+  state.fecha = lastMeetingDay(c.dia); state.loadSaved = false;
   state.view = "cell"; state.cell = c;
   render();
 }
