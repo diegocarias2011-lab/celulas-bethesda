@@ -201,13 +201,22 @@ const plural = (n, a, b) => n + " " + (n === 1 ? a : b);
 const byName = (a, b) => (a.nombre || "").localeCompare(b.nombre || "", "es");
 const normUser = (u) => String(u || "").trim().toLowerCase().replace(/\s+/g, "");
 const USER_RE = /^[a-z0-9._-]{3,30}$/;
-const ROLES = { admin: "Administrador", pastor: "Pastor (solo ver)", lider: "Líder de célula" };
+const ROLES = { admin: "Administrador", pastor: "Pastor (solo ver)", lider: "Líder de célula", maestro: "Maestro de discipulado" };
 function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (t.hidden = true), 2600); }
 async function hashOf(usuario, clave) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("bethesda|" + usuario + "|" + clave));
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 const money = (n) => "$" + (Number(n) || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const ISO_RE = /^\d{4}-\d{2}-\d{2}$/;
+const num = (x) => { const n = Number(x); return Number.isFinite(n) ? n : 0; };
+// Limpia lo que viene de la base de datos antes de mostrarlo (protección contra datos manipulados)
+function cleanMeeting(m) {
+  if (!m || !ISO_RE.test(String(m.fecha || ""))) return null;
+  const asistencia = {};
+  Object.entries(m.asistencia && typeof m.asistencia === "object" ? m.asistencia : {}).forEach(([k, v]) => { if (v === "p" || v === "a") asistencia[String(k)] = v; });
+  return { ...m, fecha: String(m.fecha), asistencia, presentes: num(m.presentes), ausentes: num(m.ausentes), total: num(m.total), invitados: num(m.invitados), ofrenda: num(m.ofrenda), tema: typeof m.tema === "string" ? m.tema : "", notas: typeof m.notas === "string" ? m.notas : "" };
+}
 function summarize(m, members) {
   const ids = new Set(members.map((x) => x.id));
   const vals = Object.entries(m.asistencia || {}).filter(([k]) => ids.has(k)).map(([, v]) => v);
@@ -216,7 +225,7 @@ function summarize(m, members) {
 
 /* ------------------------------------------------------------------ datos: modo de prueba (este teléfono) */
 function demoStore() {
-  const KEY = "celulas-bethesda-demo-v4", SKEY = "celulas-bethesda-sesion";
+  const KEY = "v2-celulas-bethesda-demo-v4", SKEY = "celulas-bethesda-sesion";
   const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || null; } catch { return null; } };
   const save = (x) => { try { localStorage.setItem(KEY, JSON.stringify(x)); } catch {} };
   let s = load();
@@ -225,9 +234,9 @@ function demoStore() {
     const members = ["Ashly", "Caty", "Daniel", "Diego", "Josué", "Melissa", "Santiago"].map((n) => ({ id: mid(), nombre: n, telefono: "" }));
     s = {
       users: {
-        admin: { nombre: "Administrador", rol: "admin", celula: "", clave: "bethesda" },
-        bethesda: { nombre: "Pastor Nery Aldana", rol: "pastor", celula: "", clave: "2287" },
-        daniel: { nombre: "Daniel", rol: "lider", celula: "demo1", clave: "danielbethesda" },
+        "prueba-admin": { nombre: "Administrador (prueba)", rol: "admin", celula: "", clave: "prueba1234" },
+        "prueba-pastor": { nombre: "Pastor (prueba)", rol: "pastor", celula: "", clave: "prueba1234" },
+        "prueba-lider": { nombre: "Líder (prueba)", rol: "lider", celula: "demo1", clave: "prueba1234" },
       },
       cells: { demo1: { id: "demo1", nombre: "Célula 18 Barnacle", lider: "Daniel", dia: "Viernes", hora: "8:00 PM", direccion: "" } },
       members: { demo1: members }, meetings: { demo1: {} },
@@ -243,6 +252,8 @@ function demoStore() {
     async login(usuario, clave) { const u = normUser(usuario); const d = s.users[u]; if (!d || d.clave !== clave) throw { code: "bad-login" }; try { localStorage.setItem(SKEY, u); } catch {} me = asMe(u); return me; },
     async current() { let u = null; try { u = localStorage.getItem(SKEY); } catch {} me = u ? asMe(u) : null; return me; },
     async signOut() { try { localStorage.removeItem(SKEY); } catch {} me = null; },
+    async log() {},
+    async actividad() { return []; },
     async users() { return Object.entries(s.users).map(([u, d]) => ({ usuario: u, nombre: d.nombre, rol: d.rol, celula: d.celula || "" })).sort(byName); },
     async saveUser(u, clave, isNew) {
       if (isNew && s.users[u.usuario]) throw { code: "exists" };
@@ -296,10 +307,11 @@ async function firebaseStore(cfg) {
       const u = normUser(usuario);
       if (!USER_RE.test(u)) throw { code: "bad-login" };
       const hash = await hashOf(u, clave);
-      try { await F.setDoc(D("sesiones", uid), { usuario: u, hash, creado: new Date().toISOString() }); }
-      catch (e) { if (String(e.code || "").includes("permission")) throw { code: "bad-login" }; throw e; }
+      try { await F.setDoc(D("sesiones", uid), { usuario: u, hash, creado: F.serverTimestamp() }); }
+      catch (e) { if (String(e.code || "").includes("permission")) { await store.log("login_fallido", u); throw { code: "bad-login" }; } throw e; }
       const d = await F.getDoc(D("usuarios", u));
       me = asMe(u, d.data());
+      await store.log("login_ok", u);
       return me;
     },
     async current() {
@@ -307,6 +319,9 @@ async function firebaseStore(cfg) {
       try {
         const sd = await F.getDoc(D("sesiones", auth.currentUser.uid));
         if (!sd.exists()) return null;
+        // La sesión dura 14 días (la base de datos también lo exige)
+        const cr = sd.data().creado;
+        if (!cr || !cr.toDate || Date.now() - cr.toDate().getTime() > 14 * 864e5) { try { await F.deleteDoc(D("sesiones", auth.currentUser.uid)); } catch {} return null; }
         const u = sd.data().usuario;
         const ud = await F.getDoc(D("usuarios", u));
         if (!ud.exists() || ud.data().hash !== sd.data().hash) return null;
@@ -314,7 +329,18 @@ async function firebaseStore(cfg) {
         return me;
       } catch { return null; }
     },
-    async signOut() { try { await F.deleteDoc(D("sesiones", auth.currentUser.uid)); } catch {} me = null; },
+    async signOut() { if (me) await store.log("salida", me.usuario); try { await F.deleteDoc(D("sesiones", auth.currentUser.uid)); } catch {} me = null; },
+    // Registro de actividad (solo el administrador lo puede leer)
+    async log(tipo, usuario, detalle = "") {
+      try {
+        await ensureAnon();
+        await F.addDoc(F.collection(db, "registro"), { tipo, usuario: String(usuario || "").slice(0, 40), app: "celulas", detalle: String(detalle || "").slice(0, 200), agente: String(navigator.userAgent || "").slice(0, 200), uid: auth.currentUser.uid, cuando: F.serverTimestamp() });
+      } catch {}
+    },
+    async actividad(n = 150) {
+      const sn = await F.getDocs(F.query(F.collection(db, "registro"), F.orderBy("cuando", "desc"), F.limit(n)));
+      return sn.docs.map((d) => { const x = d.data(); return { tipo: String(x.tipo || ""), usuario: String(x.usuario || ""), app: String(x.app || ""), detalle: String(x.detalle || ""), agente: String(x.agente || ""), uid: String(x.uid || ""), cuando: x.cuando && x.cuando.toDate ? x.cuando.toDate() : null }; });
+    },
     async users() {
       const sn = await F.getDocs(F.collection(db, "usuarios"));
       return sn.docs.map((d) => { const { hash, ...r } = d.data(); return { usuario: d.id, ...r }; }).sort(byName);
@@ -324,9 +350,10 @@ async function firebaseStore(cfg) {
       const body = { nombre: u.nombre, rol: u.rol, celula: u.rol === "lider" ? u.celula : "" };
       if (clave) body.hash = await hashOf(u.usuario, clave);
       await F.setDoc(D("usuarios", u.usuario), body, { merge: true });
+      await store.log(isNew ? "usuario_creado" : clave ? "clave_cambiada" : "usuario_editado", me ? me.usuario : "", u.usuario);
       if (clave && me && u.usuario === me.usuario) await store.login(u.usuario, clave);
     },
-    async deleteUser(u) { await F.deleteDoc(D("usuarios", u)); },
+    async deleteUser(u) { await F.deleteDoc(D("usuarios", u)); await store.log("usuario_borrado", me ? me.usuario : "", u); },
     async cells() {
       if (me.rol === "lider") {
         if (!me.celula) return [];
@@ -341,10 +368,10 @@ async function firebaseStore(cfg) {
     async members(cid) { const sn = await F.getDocs(F.collection(db, "celulas", cid, "miembros")); return sn.docs.map((d) => ({ id: d.id, ...d.data() })).sort(byName); },
     async saveMember(cid, m) { const { id, ...body } = m; if (id) await F.setDoc(D("celulas", cid, "miembros", id), body, { merge: true }); else await F.addDoc(F.collection(db, "celulas", cid, "miembros"), body); },
     async deleteMember(cid, id) { await F.deleteDoc(D("celulas", cid, "miembros", id)); },
-    async meeting(cid, f) { const d = await F.getDoc(D("celulas", cid, "reuniones", f)); return d.exists() ? d.data() : null; },
+    async meeting(cid, f) { const d = await F.getDoc(D("celulas", cid, "reuniones", f)); return d.exists() ? cleanMeeting(d.data()) : null; },
     async saveMeeting(cid, f, data) { await F.setDoc(D("celulas", cid, "reuniones", f), data); },
-    async deleteMeeting(cid, f) { await F.deleteDoc(D("celulas", cid, "reuniones", f)); },
-    async meetings(cid, n = 30) { const sn = await F.getDocs(F.query(F.collection(db, "celulas", cid, "reuniones"), F.orderBy("fecha", "desc"), F.limit(n))); return sn.docs.map((d) => d.data()); },
+    async deleteMeeting(cid, f) { await F.deleteDoc(D("celulas", cid, "reuniones", f)); await store.log("reunion_borrada", me ? me.usuario : "", cid + " " + f); },
+    async meetings(cid, n = 30) { const sn = await F.getDocs(F.query(F.collection(db, "celulas", cid, "reuniones"), F.orderBy("fecha", "desc"), F.limit(n))); return sn.docs.map((d) => cleanMeeting(d.data())).filter(Boolean); },
     watch(cells, cb) {
       const on = (q) => { let first = true; return F.onSnapshot(q, () => { if (first) { first = false; return; } cb(); }, () => {}); };
       const unsubs = [on(F.collection(db, "celulas"))];
@@ -400,7 +427,7 @@ function showLogin(msg) {
     <label class="sub" style="display:flex;gap:6px;align-items:center;justify-self:start;margin:0"><input type="checkbox" id="l-show"> Mostrar clave</label>
     <button class="btn primary" type="submit" style="width:100%">Entrar</button>
     <p class="err" id="l-err" ${msg ? "" : "hidden"}>${esc(msg || "")}</p>
-    ${store.mode === "demo" ? `<div class="hint">Usuarios de prueba:<br><b>daniel</b> / danielbethesda (líder) · <b>bethesda</b> / 2287 (pastor) · <b>admin</b> / bethesda</div>` : ""}
+    ${store.mode === "demo" ? `<div class="hint">Modo de prueba: <b>prueba-lider</b>, <b>prueba-pastor</b> o <b>prueba-admin</b>, clave prueba1234</div>` : ""}
   </form></div>`;
   $("#l-show").onchange = (e) => ($("#l-pass").type = e.target.checked ? "text" : "password");
   setTimeout(() => $("#l-user").focus(), 30);
@@ -425,7 +452,7 @@ function showSetup() {
   $("#sf").onsubmit = async (e) => {
     e.preventDefault();
     const err = $("#s-err"), p1 = $("#s-p1").value, p2 = $("#s-p2").value, n = $("#s-name").value.trim() || "Administrador";
-    if (p1.length < 4) { err.textContent = "La clave debe tener al menos 4 letras o números."; err.hidden = false; return; }
+    if (p1.length < 8) { err.textContent = "La clave debe tener al menos 8 letras o números."; err.hidden = false; return; }
     if (p1 !== p2) { err.textContent = "Las dos claves no son iguales."; err.hidden = false; return; }
     try { me = await store.setupAdmin(n, p1); start(); } catch (e2) { err.textContent = errMsg(e2); err.hidden = false; }
   };
@@ -469,7 +496,7 @@ async function home() {
       <p class="sub" style="margin-top:-6px">Suma de la última reunión de cada célula.</p>
       <button class="btn wa" id="wa" type="button">Enviar resumen por WhatsApp</button>` : ""}
     <div class="cells" id="cells"></div>
-    ${me.rol === "admin" ? `<div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn gold" id="newcell" type="button">+ Nueva célula</button><button class="btn" id="users" type="button">Usuarios y claves</button><button class="btn primary" id="respaldo" type="button">Descargar respaldo (PDF)</button></div>` : ""}`;
+    ${me.rol === "admin" ? `<div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn gold" id="newcell" type="button">+ Nueva célula</button><button class="btn" id="users" type="button">Usuarios y claves</button><button class="btn primary" id="respaldo" type="button">Descargar respaldo (PDF)</button><button class="btn" id="actividad" type="button">Actividad y seguridad</button></div>` : ""}`;
   const box = $("#cells");
   if (!cells.length) box.innerHTML = me.rol === "admin"
     ? `<div class="empty"><strong>Todavía no hay células</strong>Crea la primera con el botón “Nueva célula”. Después crea el usuario y la clave de su líder en “Usuarios y claves”.</div>`
@@ -486,7 +513,7 @@ async function home() {
     box.appendChild(b);
   });
   if ($("#wa")) $("#wa").onclick = () => resumen(cells);
-  if (me.rol === "admin") { $("#newcell").onclick = () => cellForm(null); $("#users").onclick = usersView; $("#respaldo").onclick = () => descargarRespaldo(cells); }
+  if (me.rol === "admin") { $("#newcell").onclick = () => cellForm(null); $("#users").onclick = usersView; $("#respaldo").onclick = () => descargarRespaldo(cells); $("#actividad").onclick = actividadView; }
   let t;
   unwatch = store.watch(cells, () => { clearTimeout(t); t = setTimeout(() => { if (state.view === "home") { home(); toast("Nuevo reporte de un líder"); } }, 700); });
 }
@@ -522,10 +549,10 @@ section + section { page-break-before: always; } .bar { position: sticky; top: 0
 .bar button { background: #0a2a6e; color: #fff; border: 0; border-radius: 8px; padding: 9px 14px; font-weight: 700; font-size: 14px; cursor: pointer; }
 @media print { .bar { display: none; } body { padding: 0; } }
 </style></head><body>
-<div class="bar"><button onclick="print()">Guardar como PDF</button><span>En la ventana que se abre, escoge <b>“Guardar como PDF”</b> como impresora y guárdalo en tu computadora.</span></div>
+<div class="bar"><button type="button" id="imprimir">Guardar como PDF</button><span>En la ventana que se abre, escoge <b>“Guardar como PDF”</b> como impresora y guárdalo en tu computadora.</span></div>
 <header><img src="${document.querySelector("img.logo")?.src || ""}" alt=""><div><h1>Respaldo de las Células · Iglesia Cristiana Bethesda</h1><div class="muted">Generado el ${e(hoy)} · ${datos.length} ${datos.length === 1 ? "célula" : "células"}</div></div></header>
 ${resumen}${secc}
-<script>setTimeout(function(){ try { print(); } catch (e) {} }, 600);<\/script></body></html>`;
+</body></html>`;
 }
 async function descargarRespaldo(cells) {
   const w = window.open("", "_blank");
@@ -538,6 +565,9 @@ async function descargarRespaldo(cells) {
       return { c, ms: ms.sort((a, b) => a.fecha.localeCompare(b.fecha)), mem };
     }));
     w.document.open(); w.document.write(reporteCelulas(datos)); w.document.close();
+    const pb = w.document.getElementById("imprimir"); if (pb) pb.addEventListener("click", () => w.print());
+    setTimeout(() => { try { w.focus(); w.print(); } catch {} }, 600);
+    store.log("respaldo_pdf", me.usuario, "células");
   } catch (e) { w.close(); toast(errMsg(e)); }
   btn.disabled = false; btn.textContent = "Descargar respaldo (PDF)";
 }
@@ -626,6 +656,48 @@ function cellForm(c) {
 }
 
 /* ---------- usuarios y claves (administrador) */
+/* ---------- actividad y seguridad (solo el administrador) */
+const TIPOS = { login_ok: "Entró", login_fallido: "Clave incorrecta", salida: "Salió", usuario_creado: "Creó usuario", usuario_editado: "Editó usuario", clave_cambiada: "Cambió clave", usuario_borrado: "Borró usuario", reunion_borrada: "Borró reunión", clase_borrada: "Borró clase", respaldo_pdf: "Descargó respaldo" };
+function alertas(ev) {
+  const out = [], hora = 3600e3, now = Date.now();
+  const fallos = {};
+  ev.filter((e) => e.tipo === "login_fallido" && e.cuando && now - e.cuando < 24 * hora).forEach((e) => { (fallos[e.usuario] ||= []).push(e); });
+  Object.entries(fallos).forEach(([u, l]) => {
+    const enHora = l.filter((e) => l[0].cuando - e.cuando < hora).length;
+    if (l.length >= 3) out.push({ nivel: enHora >= 5 ? "alta" : "media", txt: `${l.length} intentos con clave incorrecta para “${u || "(vacío)"}” en las últimas 24 horas${enHora >= 5 ? " (muchos en menos de una hora: posible ataque)" : ""}.` });
+  });
+  const conocidos = new Set(ev.filter((e) => e.tipo === "login_ok").map((e) => e.usuario));
+  const raros = [...new Set(ev.filter((e) => e.tipo === "login_fallido" && !conocidos.has(e.usuario)).map((e) => e.usuario))];
+  if (raros.length) out.push({ nivel: "media", txt: `Intentaron entrar con usuarios que nunca han entrado bien: ${raros.slice(0, 8).map((x) => "“" + x + "”").join(", ")}.` });
+  const noche = ev.filter((e) => e.tipo === "login_ok" && e.cuando && e.cuando.getHours() < 5);
+  if (noche.length) out.push({ nivel: "baja", txt: `${noche.length} ${noche.length === 1 ? "entrada" : "entradas"} entre las 12 y las 5 de la mañana. Revisa que hayan sido ustedes.` });
+  const borr = ev.filter((e) => /borrad|borr/.test(e.tipo) && e.cuando && now - e.cuando < 7 * 24 * hora);
+  if (borr.length >= 5) out.push({ nivel: "media", txt: `${borr.length} cosas borradas en los últimos 7 días.` });
+  return out;
+}
+async function actividadView() {
+  stopWatch(); state.view = "actividad"; savebar.hide();
+  app.innerHTML = `<div class="empty"><div class="spinner"></div></div>`;
+  let ev;
+  try { ev = await store.actividad(200); } catch (e) { app.innerHTML = `<div class="empty"><strong>No se pudo cargar</strong>${esc(errMsg(e))}</div>`; return; }
+  const al = alertas(ev);
+  const fmt = (d) => d ? d.toLocaleString("es-US", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "—";
+  const disp = (a) => /iPhone|iPad/.test(a) ? "iPhone" : /Android/.test(a) ? "Android" : /Windows/.test(a) ? "Windows" : /Mac/.test(a) ? "Mac" : "Otro";
+  app.innerHTML = `<div><button class="back" id="back" type="button">‹ Células</button>
+      <h2 style="margin-top:6px">Actividad y seguridad</h2>
+      <p class="sub">Quién entró, intentos con clave incorrecta y cambios importantes en células y discipulado. Solo tú puedes ver esto.</p></div>
+    <div class="grid">${al.length ? al.map((a) => `<div class="notice" style="${a.nivel === "alta" ? "background:#fde2e2" : ""}"><span><b>${a.nivel === "alta" ? "⚠️ Alerta" : a.nivel === "media" ? "Atención" : "Aviso"}:</b> ${esc(a.txt)}</span></div>`).join("") : `<div class="notice"><span>✅ No se ve nada sospechoso en la actividad reciente.</span></div>`}</div>
+    <div class="list" id="alist"></div>`;
+  $("#back").onclick = home;
+  if (!ev.length) $("#alist").innerHTML = `<div class="empty"><strong>Todavía no hay actividad registrada</strong>Aparecerá aquí cuando alguien entre o haga cambios.</div>`;
+  ev.forEach((e) => {
+    const it = document.createElement("div"); it.className = "item";
+    const bad = e.tipo === "login_fallido";
+    it.innerHTML = `<div class="grow"><b style="${bad ? "color:var(--no)" : ""}">${esc(TIPOS[e.tipo] || e.tipo)}</b> · ${esc(e.usuario || "—")}<small>${esc(fmt(e.cuando))} · ${esc(e.app === "discipulado" ? "Discipulado" : "Células")} · ${esc(disp(e.agente))}${e.detalle ? " · " + esc(e.detalle) : ""}</small></div>`;
+    $("#alist").appendChild(it);
+  });
+}
+
 async function usersView() {
   stopWatch(); state.view = "users"; savebar.hide();
   app.innerHTML = `<div class="empty"><div class="spinner"></div></div>`;
@@ -655,7 +727,7 @@ function userForm(u, cells) {
     <div class="field"><label for="u-nombre">Nombre</label><input id="u-nombre" placeholder="Ej. Jorge Flores" value="${esc(u?.nombre)}"></div>
     <div class="row2">
       <div class="field"><label for="u-user">Usuario</label><input id="u-user" autocapitalize="none" spellcheck="false" placeholder="Ej. daniel" value="${esc(u?.usuario)}" ${isNew ? "" : "disabled"}></div>
-      <div class="field"><label for="u-pass">${isNew ? "Clave" : "Clave nueva (opcional)"}</label><input id="u-pass" type="text" autocomplete="off" placeholder="${isNew ? "Mínimo 4" : "Déjala vacía para no cambiarla"}"></div>
+      <div class="field"><label for="u-pass">${isNew ? "Clave" : "Clave nueva (opcional)"}</label><input id="u-pass" type="text" autocomplete="off" placeholder="${isNew ? "Mínimo 8" : "Déjala vacía para no cambiarla"}"></div>
     </div>
     <div class="row2">
       <div class="field"><label for="u-rol">Tipo de acceso</label><select id="u-rol">${Object.entries(ROLES).map(([k, l]) => `<option value="${k}" ${(u?.rol || "lider") === k ? "selected" : ""}>${l}</option>`).join("")}</select></div>
@@ -693,7 +765,7 @@ function userForm(u, cells) {
     const fail = (m) => { err.textContent = m; err.hidden = false; };
     if (!body.nombre) return fail("Escribe el nombre de la persona.");
     if (!USER_RE.test(body.usuario)) return fail("El usuario debe tener de 3 a 30 letras o números, sin espacios ni acentos.");
-    if ((isNew || clave) && clave.length < 4) return fail("La clave debe tener al menos 4 letras o números.");
+    if ((isNew || clave) && clave.length < 8) return fail("La clave debe tener al menos 8 letras o números. Mejor si mezclas letras y números.");
     if (body.rol === "lider" && !body.celula) return fail("Escoge la célula de este líder.");
     if (!isNew && u.usuario === me.usuario && body.rol !== "admin") return fail("No puedes quitarte el acceso de administrador a ti mismo.");
     try { await store.saveUser(body, clave, isNew); close(); toast(isNew ? `Usuario ${body.usuario} creado` : "Usuario guardado"); usersView(); }
