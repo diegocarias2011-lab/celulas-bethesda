@@ -141,6 +141,8 @@ h2 { margin: 0; font-family: var(--f-display); font-size: 1.35rem; text-wrap: ba
 .hint { background: var(--chip); border-radius: 10px; padding: 10px 12px; font-size: .85rem; color: var(--fg); width: 100%; }
 .btn.wa { background: #1f9d55; color: #fff; border-color: transparent; }
 a.btn { text-decoration: none; } a.btn:not(.wa) { color: var(--fg); }
+.contact { display: inline-flex; gap: 6px; }
+@media (max-width: 480px) { .item:has(.contact) { flex-wrap: wrap; } .item:has(.contact) .grow { flex-basis: 100%; } }
 .top .who b { font-weight: 700; }
 .top .who { max-width: 42%; }
 @media (max-width: 480px) { .top p { display: none; } .top h1 { font-size: 1.1rem; } }
@@ -886,6 +888,12 @@ async function paneAsistencia() {
   }
 }
 
+/* botones para llamar o escribir por WhatsApp */
+function contactoBtns(m) {
+  const d = String(m.telefono || "").replace(/\D/g, ""), wa = d.length === 10 ? "1" + d : d;
+  if (d.length < 7) return "";
+  return `<span class="contact"><a class="btn small" href="tel:${esc(d)}" aria-label="Llamar a ${esc(m.nombre)}">Llamar</a><a class="btn small wa" href="https://wa.me/${esc(wa)}" target="_blank" rel="noopener" aria-label="WhatsApp a ${esc(m.nombre)}">WhatsApp</a></span>`;
+}
 /* pastor: ver las personas y sus teléfonos */
 async function paneVerMiembros() {
   const c = state.cell, pane = $("#pane");
@@ -894,9 +902,8 @@ async function paneVerMiembros() {
   const digits = (t) => String(t || "").replace(/\D/g, "");
   pane.innerHTML = `<div class="grid"><p class="sub" style="margin:0">${plural(members.length, "persona", "personas")} en esta célula</p><div class="list" id="mlist"></div></div>`;
   members.forEach((m) => {
-    const d = digits(m.telefono), wa = d.length === 10 ? "1" + d : d;
     const it = document.createElement("div"); it.className = "item";
-    it.innerHTML = `<div class="grow"><b>${esc(m.nombre)}</b><small>${m.telefono ? esc(m.telefono) : "Sin teléfono"}</small></div>${d ? `<a class="btn small" href="tel:${esc(d)}" aria-label="Llamar a ${esc(m.nombre)}">Llamar</a><a class="btn small wa" href="https://wa.me/${esc(wa)}" target="_blank" rel="noopener" aria-label="WhatsApp a ${esc(m.nombre)}">WhatsApp</a>` : ""}`;
+    it.innerHTML = `<div class="grow"><b>${esc(m.nombre)}</b><small>${m.telefono ? esc(m.telefono) : "Sin teléfono"}</small></div>${contactoBtns(m)}`;
     $("#mlist").appendChild(it);
   });
 }
@@ -917,8 +924,8 @@ async function paneMiembros() {
   if (!members.length) list.innerHTML = `<div class="empty"><strong>Sin miembros todavía</strong>Escribe el nombre arriba y toca “Agregar”. Repite con cada persona de tu célula.</div>`;
   members.forEach((m) => {
     const it = document.createElement("div"); it.className = "item";
-    it.innerHTML = `<div class="grow"><b>${esc(m.nombre)}</b>${m.telefono ? `<small>${esc(m.telefono)}</small>` : ""}</div><button class="btn small" type="button">Editar</button>`;
-    it.querySelector("button").onclick = () => {
+    it.innerHTML = `<div class="grow"><b>${esc(m.nombre)}</b>${m.telefono ? `<small>${esc(m.telefono)}</small>` : `<small>Sin teléfono · toca Editar para agregarlo</small>`}</div>${contactoBtns(m)}<button class="btn small" type="button" data-edit>Editar</button>`;
+    it.querySelector("[data-edit]").onclick = () => {
       it.innerHTML = `<div class="grow grid" style="gap:8px"><input class="e-n" value="${esc(m.nombre)}" aria-label="Nombre" style="padding:9px 10px;border-radius:9px;border:1px solid var(--line);background:var(--bg)"><input class="e-t" value="${esc(m.telefono)}" aria-label="Teléfono" placeholder="Teléfono" style="padding:9px 10px;border-radius:9px;border:1px solid var(--line);background:var(--bg)">
         <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn small primary" type="button" data-s>Guardar</button><button class="btn small" type="button" data-c>Cancelar</button><button class="btn small danger" type="button" data-d>Quitar</button></div></div>`;
       it.querySelector("[data-c]").onclick = () => render();
